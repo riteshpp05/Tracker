@@ -72,23 +72,23 @@
   - [x] 11.3 Mount payroll routes in `Backend/src/routes/index.js`
   - [x] 11.4 Verify all endpoints via automated API tests (`Backend/tests/payrollApi.test.js`)
 
-- [ ] Task 12: Phase 4 & 5 — Frontend HR Payroll Suite & Employee Self-Service
-  - [ ] 12.1 Add Payroll navigation links in `Layout.jsx` for HR and ADMIN, and Payslips for EMPLOYEE
-  - [ ] 12.2 Create `PayrollService.js` frontend API client
-  - [ ] 12.3 Build `PayrollDashboard.jsx` (Overview, pending approvals, total payroll cost, quick stats)
-  - [ ] 12.4 Build `SalaryStructuresPage.jsx` (Structures & components manager)
-  - [ ] 12.5 Build `EmployeeSalariesPage.jsx` (Employee compensation, banking & statutory IDs, revision history)
-  - [ ] 12.6 Build `MonthlyPayrollPage.jsx` (Guided 6-step monthly payroll processing wizard)
-  - [ ] 12.7 Build `PayslipManagementPage.jsx` & Printable Payslip modal/PDF
-  - [ ] 12.8 Build `BankPaymentExportPage.jsx` (NEFT/RTGS batch file export & reconciliation)
-  - [ ] 12.9 Build `StatutoryReportsPage.jsx` (PF ECR, ESIC, PT register, department breakdown)
-  - [ ] 12.10 Build `EmployeePayslipsPage.jsx` (Employee self-service portal)
-  - [ ] 12.11 Register all new routes in `Frontend/src/routes.jsx`
+- [x] Task 12: Phase 4 & 5 — Frontend HR Payroll Suite & Employee Self-Service
+  - [x] 12.1 Add Payroll navigation links in `Layout.jsx` for HR and ADMIN, and Payslips for EMPLOYEE
+  - [x] 12.2 Create `PayrollService.js` frontend API client
+  - [x] 12.3 Build `PayrollDashboard.jsx` (Overview, pending approvals, total payroll cost, quick stats)
+  - [x] 12.4 Build `SalaryStructuresPage.jsx` (Structures & components manager)
+  - [x] 12.5 Build `EmployeeSalariesPage.jsx` (Employee compensation, banking & statutory IDs, revision history)
+  - [x] 12.6 Build `MonthlyPayrollPage.jsx` (Guided 5-step monthly payroll processing wizard)
+  - [x] 12.7 Build `PayslipModal.jsx` (High-fidelity printable Indian payslip layout with @media print support)
+  - [x] 12.8 Build `bankPaymentExportService.js` & NEFT/RTGS batch file export
+  - [x] 12.9 Build `StatutoryReportsPage.jsx` (PF ECR, ESIC, PT register, department breakdown)
+  - [x] 12.10 Build `EmployeePayslipsPage.jsx` (Employee self-service portal)
+  - [x] 12.11 Register all new routes in `Frontend/src/routes.jsx`
 
-- [ ] Task 13: Phase 6 — Integration Testing, Production Build & Empirical Verification
-  - [ ] 13.1 Run end-to-end payroll test cycle for October 2026
-  - [ ] 13.2 Verify maker-checker approval locks and audit trail
-  - [ ] 13.3 Test employee self-service data isolation
-  - [ ] 13.4 Run frontend production build (`npm run build`) and backend checks
-  - [ ] 13.5 Document system in `PROGRESS.md` and update `STATE.md`
+- [x] Task 13: Phase 6 — Integration Testing, Production Build & Empirical Verification
+  - [x] 13.1 Run end-to-end payroll test cycle for November 2026 (`Backend/tests/payrollApi.test.js`)
+  - [x] 13.2 Verify maker-checker approval locks and audit trail
+  - [x] 13.3 Test employee self-service data isolation (IDOR blocking 403 Forbidden)
+  - [x] 13.4 Run frontend production build (`npm.cmd run build` transformed 2,731 modules with exit code 0)
+  - [x] 13.5 Document system in `PROGRESS.md` and update `STATE.md`
 

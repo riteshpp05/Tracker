@@ -48,6 +48,14 @@ import { TimesheetHistory } from "./components/employee/TimesheetHistory";
 import LeaveManagementPage from "./components/employee/LeaveManagementPage";
 import ExpenseTravelPage from "./components/employee/ExpenseTravelPage";
 
+// Payroll Components
+import PayrollDashboard from "./components/payroll/PayrollDashboard";
+import EmployeeSalariesPage from "./components/payroll/EmployeeSalariesPage";
+import SalaryStructuresPage from "./components/payroll/SalaryStructuresPage";
+import MonthlyPayrollPage from "./components/payroll/MonthlyPayrollPage";
+import StatutoryReportsPage from "./components/payroll/StatutoryReportsPage";
+import EmployeePayslipsPage from "./components/payroll/EmployeePayslipsPage";
+
 // Common Components
 import { Profile } from "./components/common/Profile";
 import { Notifications } from "./components/common/Notifications";
@@ -213,6 +221,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute roles={["EMPLOYEE"]}>
               <ExpenseTravelPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employee/payslips"
+          element={
+            <ProtectedRoute roles={["EMPLOYEE", "ADMIN", "HR", "MANAGER"]}>
+              <EmployeePayslipsPage />
             </ProtectedRoute>
           }
         />
@@ -441,6 +457,50 @@ export function AppRoutes() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <SystemSettings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ============================================ */}
+        {/* PAYROLL ROUTES (ADMIN & HR) */}
+        {/* ============================================ */}
+        <Route
+          path="/admin/payroll"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <PayrollDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/process"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <MonthlyPayrollPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/salaries"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <EmployeeSalariesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/structures"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <SalaryStructuresPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/reports"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <StatutoryReportsPage />
             </ProtectedRoute>
           }
         />

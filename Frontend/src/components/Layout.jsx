@@ -30,6 +30,11 @@ import {
   ClipboardList,
   Wrench,
   ExternalLink,
+  Banknote,
+  CreditCard,
+  FileSpreadsheet,
+  Layers,
+  Calculator,
 } from "lucide-react";
 
 const BRAND_NAV = "#111827"; // PatilOne navy
@@ -100,6 +105,11 @@ export const Layout = ({ children }) => {
       { name: "Leaves", href: "/admin/leaves", icon: CalendarDays },
       { name: "Travel & Expenses", href: "/admin/expenses", icon: Receipt },
       { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
+      { name: "Payroll Dashboard", href: "/admin/payroll", icon: Banknote },
+      { name: "Monthly Payroll", href: "/admin/payroll/process", icon: Calculator },
+      { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
+      { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
+      { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
       { name: "Audit Trail", href: "/admin/audit-logs", icon: ShieldAlert },
       { name: "Reports", href: "/admin/reports", icon: BarChart3 },
       { name: "Settings", href: "/admin/settings", icon: Settings },
@@ -110,6 +120,11 @@ export const Layout = ({ children }) => {
       { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
       { name: "Leaves", href: "/hr/leaves", icon: CalendarDays },
       { name: "Travel & Expenses", href: "/hr/expenses", icon: Receipt },
+      { name: "Payroll Dashboard", href: "/admin/payroll", icon: Banknote },
+      { name: "Monthly Payroll", href: "/admin/payroll/process", icon: Calculator },
+      { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
+      { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
+      { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
       { name: "Reports", href: "/admin/reports", icon: BarChart3 },
     ],
     MANAGER: [
@@ -129,6 +144,7 @@ export const Layout = ({ children }) => {
       { name: "Tasks/Tickets", href: "/employee/my-tickets", icon: TicketIcon },
       { name: "Leaves", href: "/employee/leaves", icon: CalendarDays },
       { name: "Travel & Expenses", href: "/employee/expenses", icon: Receipt },
+      { name: "My Payslips", href: "/employee/payslips", icon: Receipt },
       { name: "Timesheet History", href: "/employee/history", icon: ClipboardList },
     ],
   };
@@ -175,7 +191,7 @@ export const Layout = ({ children }) => {
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1" data-lenis-prevent="true">
           <div className="px-2 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#98A2B3]">
             Workspace
           </div>
