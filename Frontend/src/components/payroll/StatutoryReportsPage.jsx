@@ -58,16 +58,39 @@ export const StatutoryReportsPage = () => {
   const parsedSlips = slips.map((s) => {
     let calc = {};
     try {
-      calc = typeof s.calculations_snapshot === "string" 
-        ? JSON.parse(s.calculations_snapshot) 
-        : (s.calculations_snapshot || {});
+      calc = typeof s.calculation_snapshot === "string" 
+        ? JSON.parse(s.calculation_snapshot) 
+        : (s.calculation_snapshot || (typeof s.calculations_snapshot === "string" ? JSON.parse(s.calculations_snapshot) : s.calculations_snapshot) || {});
     } catch (e) {
       calc = {};
     }
+    const rawStat = calc.statutoryDetails || calc.statutoryBreakdown || {};
+    const statutory = {
+      epf: {
+        employeePf: rawStat.epf?.employeePF ?? rawStat.epf?.employeePf ?? 0,
+        employerEpf: rawStat.epf?.employerEPF ?? rawStat.epf?.employerEpf ?? 0,
+        employerEps: rawStat.epf?.employerEPS ?? rawStat.epf?.employerEps ?? 0,
+        edli: rawStat.epf?.employerEDLI ?? rawStat.epf?.edli ?? 0,
+        adminCharges: rawStat.epf?.employerAdmin ?? rawStat.epf?.adminCharges ?? 0,
+      },
+      esic: {
+        employeeEsi: rawStat.esic?.employeeESIC ?? rawStat.esic?.employeeEsi ?? 0,
+        employerEsi: rawStat.esic?.employerESIC ?? rawStat.esic?.employerEsi ?? 0,
+        eligible: rawStat.esic?.eligible ?? false,
+      },
+      pt: {
+        pt: rawStat.pt?.ptAmount ?? rawStat.pt?.pt ?? 0,
+        slab: rawStat.pt?.slab ?? "",
+      },
+      tds: {
+        tds: rawStat.tds?.monthlyTDS ?? rawStat.tds?.tds ?? 0,
+        annualTax: rawStat.tds?.annualTax ?? 0,
+      },
+    };
     return {
       ...s,
       calc,
-      statutory: calc.statutoryBreakdown || {},
+      statutory,
     };
   });
 
