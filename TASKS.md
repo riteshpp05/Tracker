@@ -59,12 +59,12 @@
   - [x] 9.3 Seed initial Indian salary components, default structures, statutory configs, and employee salary assignments
   - [x] 9.4 Verify database tables and constraints with SQL checks
 
-- [ ] Task 10: Phase 2 — Deterministic Payroll Engine & Statutory Services
-  - [ ] 10.1 Build `payrollCalculationEngine.js` (pro-ration, earnings, deductions, rounding, words generator)
-  - [ ] 10.2 Build `statutoryRulesService.js` (EPF, ESIC, Maharashtra PT, TDS slabs with versioning)
-  - [ ] 10.3 Build `payrollInputCollector.js` (gather approved leaves, LOP, timesheets, expense claims)
-  - [ ] 10.4 Build `payrollValidationService.js` (readiness checks, missing PAN/bank info, duplicate prevention)
-  - [ ] 10.5 Author and run comprehensive test suite `Backend/tests/payrollEngine.test.js`
+- [x] Task 10: Phase 2 — Deterministic Payroll Engine & Statutory Services
+  - [x] 10.1 Build `payrollCalculationEngine.js` (pro-ration, earnings, deductions, rounding, words generator)
+  - [x] 10.2 Build `statutoryRulesService.js` (EPF, ESIC, Maharashtra PT, TDS slabs with versioning)
+  - [x] 10.3 Build `payrollInputCollector.js` (gather approved leaves, LOP, timesheets, expense claims)
+  - [x] 10.4 Build `payrollValidationService.js` (readiness checks, missing PAN/bank info, duplicate prevention)
+  - [x] 10.5 Author and run comprehensive test suite `Backend/tests/payrollEngine.test.js`
 
 - [ ] Task 11: Phase 3 — Backend Payroll Controller & REST API
   - [ ] 11.1 Create `Backend/src/controllers/payrollController.js` with full lifecycle endpoints
