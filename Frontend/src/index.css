@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===================================================
+   PATILONE ENTERPRISE DESIGN TOKENS
+   Clean, light-gray workspace, deep navy headers,
+   restrained indigo accents, subtle borders.
+=================================================== */
+:root {
+  /* Core brand & surfaces */
+  --background: #f7f8fa;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --popover: #ffffff;
+  --popover-foreground: #172033;
+  --primary: #111827;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #172033;
+  --muted: #f9fafb;
+  --muted-foreground: #667085;
+  --accent: #f3f4f6;
+  --accent-foreground: #172033;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #6558d9;
+  --radius: 0.5rem;
+
+  /* Backward compatibility tokens for existing components */
+  --primary-blue: #111827;
+  --light-blue: #eef2ff;
+  --dark-blue: #0f172a;
+  --border-gray: #e5e7eb;
+  --text-dark: #172033;
+  --text-light: #ffffff;
+  --text-muted: #667085;
+  --bg-light: #ffffff;
+  --bg-gray: #f7f8fa;
+  --cloudstine-bg: #f7f8fa;
+  --cloudstine-navy: #111827;
+  --cloudstine-indigo: #6558d9;
+}
+
+/* ===================================================
+   BASE RESET & TYPOGRAPHY FOUNDATION
+   No aggressive tag overrides. Tailwind utility classes
+   control colors, typography, borders, and layouts.
+=================================================== */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Base anchor defaults - easily overridden by Tailwind classes */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ===================================================
+   LENIS SMOOTH SCROLL INTEGRATION
+   Strictly complies with project guidelines.
+=================================================== */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent],
+[data-lenis-prevent="true"] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* ===================================================
+   RADIX UI & PORTAL OVERLAYS
+=================================================== */
+[data-radix-dialog-overlay] {
+  background-color: rgba(17, 24, 39, 0.45);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease-out;
+  z-index: 50;
+}
+
+[data-radix-dialog-content] {
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-radix-popper-content-wrapper],
+[data-radix-select-content],
+.SelectContent,
+[data-radix-dropdown-menu-content],
+[class*="DropdownMenuContent"],
+[class*="DropdownMenuSubContent"] {
+  background-color: #ffffff !important;
+  color: #172033 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  z-index: 9999 !important;
+}
+
+[data-radix-select-content] [data-radix-select-viewport],
+.SelectViewport,
+[class*="SelectViewport"] {
+  background-color: #ffffff !important;
+  color: #172033 !important;
+}
+
+/* ===================================================
+   KEYFRAME ANIMATIONS
+=================================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* ===================================================
+   CUSTOM SCROLLBAR
+=================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ===================================================
+   ACCESSIBILITY
+=================================================== */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #6558d9;
+  outline-offset: 2px;
+}
