@@ -44,6 +44,7 @@ import leaveRoutes from "./leaveRoutes.js";
 import travelRoutes from "./travelRoutes.js";
 import expenseRoutes from "./expenseRoutes.js";
 import recruitmentRoutes from "./recruitmentRoutes.js";
+import payrollRoutes from "./payrollRoutes.js";
 
 const router = express.Router();
 
@@ -151,6 +152,7 @@ router.use("/leaves", leaveRoutes);
 router.use("/travel", travelRoutes);
 router.use("/expenses", expenseRoutes);
 router.use("/recruitment", recruitmentRoutes);
+router.use("/payroll", payrollRoutes);
 // ===============================================
 // DEVELOPMENT MODE - ROUTE LOGGING
 // ===============================================

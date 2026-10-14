@@ -176,7 +176,7 @@ class PayrollInputCollector {
        FROM expense_claims
        WHERE status = 'Approved'
          AND reimbursement_status IN ('Unpaid', 'Processing')
-         AND expense_date <= $2
+         AND expense_date <= $1
        GROUP BY employee_id`,
       [endDate]
     );

@@ -66,11 +66,11 @@
   - [x] 10.4 Build `payrollValidationService.js` (readiness checks, missing PAN/bank info, duplicate prevention)
   - [x] 10.5 Author and run comprehensive test suite `Backend/tests/payrollEngine.test.js`
 
-- [ ] Task 11: Phase 3 — Backend Payroll Controller & REST API
-  - [ ] 11.1 Create `Backend/src/controllers/payrollController.js` with full lifecycle endpoints
-  - [ ] 11.2 Create `Backend/src/routes/payrollRoutes.js` with RBAC protection
-  - [ ] 11.3 Mount payroll routes in `Backend/src/routes/index.js`
-  - [ ] 11.4 Verify all endpoints via automated API tests
+- [x] Task 11: Phase 3 — Backend Payroll Controller & REST API
+  - [x] 11.1 Create `Backend/src/controllers/payrollController.js` with full lifecycle endpoints
+  - [x] 11.2 Create `Backend/src/routes/payrollRoutes.js` with RBAC protection
+  - [x] 11.3 Mount payroll routes in `Backend/src/routes/index.js`
+  - [x] 11.4 Verify all endpoints via automated API tests (`Backend/tests/payrollApi.test.js`)
 
 - [ ] Task 12: Phase 4 & 5 — Frontend HR Payroll Suite & Employee Self-Service
   - [ ] 12.1 Add Payroll navigation links in `Layout.jsx` for HR and ADMIN, and Payslips for EMPLOYEE
