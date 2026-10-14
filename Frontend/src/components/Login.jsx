@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
-import { Lock, Mail, Eye, EyeOff, Shield, Users, Briefcase, UserCheck } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, Shield, Users, Briefcase, UserCheck, MapPin, Navigation } from "lucide-react";
+import enterpriseService from "../services/enterpriseService";
 
 export function Login() {
   const { login } = useAuth();
@@ -14,33 +15,96 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("detecting");
+  const [nearestOfficeName, setNearestOfficeName] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    const detectLocation = async () => {
+      try {
+        const geoRes = await enterpriseService.getGeofences();
+        const geofences = geoRes.data || [];
+
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              if (!isMounted) return;
+              const coords = {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              };
+              sessionStorage.setItem("pendingLoginLocation", JSON.stringify(coords));
+
+              let foundOffice = null;
+              for (const geo of geofences) {
+                const rad = Math.PI / 180;
+                const dLat = (parseFloat(geo.latitude) - coords.latitude) * rad;
+                const dLon = (parseFloat(geo.longitude) - coords.longitude) * rad;
+                const a =
+                  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(coords.latitude * rad) *
+                    Math.cos(parseFloat(geo.latitude) * rad) *
+                    Math.sin(dLon / 2) *
+                    Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const d = 6371e3 * c;
+                if (d <= geo.radius_meters) {
+                  foundOffice = geo.name;
+                  break;
+                }
+              }
+
+              if (foundOffice) {
+                setNearestOfficeName(foundOffice);
+                setLocationStatus("in-office");
+              } else {
+                setLocationStatus("remote");
+              }
+            },
+            () => {
+              if (isMounted) setLocationStatus("denied");
+            },
+            { timeout: 8000 }
+          );
+        } else {
+          if (isMounted) setLocationStatus("denied");
+        }
+      } catch (e) {
+        if (isMounted) setLocationStatus("remote");
+      }
+    };
+    detectLocation();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const DEMO_ACCOUNTS = [
     {
       role: "Admin",
       email: "admin@shendeindustries.com",
-      password: "Admin@Shende2026",
+      password: "password123",
       icon: Shield,
       color: "bg-[#F7F8FA] hover:bg-[#eef2ff] border-[#E5E7EB] text-[#172033]",
     },
     {
       role: "HR",
       email: "hr@shendeindustries.com",
-      password: "HR@Shende2026",
+      password: "password123",
       icon: Users,
       color: "bg-[#F7F8FA] hover:bg-[#eef2ff] border-[#E5E7EB] text-[#172033]",
     },
     {
       role: "Manager",
       email: "manager@shendeindustries.com",
-      password: "Manager@Shende2026",
+      password: "password123",
       icon: Briefcase,
       color: "bg-[#F7F8FA] hover:bg-[#eef2ff] border-[#E5E7EB] text-[#172033]",
     },
     {
       role: "Employee",
       email: "employee@shendeindustries.com",
-      password: "Employee@Shende2026",
+      password: "password123",
       icon: UserCheck,
       color: "bg-[#F7F8FA] hover:bg-[#eef2ff] border-[#E5E7EB] text-[#172033]",
     },
@@ -125,6 +189,34 @@ export function Login() {
           </div>
 
           <div className="border-t border-[#E5E7EB]" />
+
+          {/* Cloudstine-inspired Geolocation Verification Status */}
+          <div className="py-1">
+            {locationStatus === "detecting" && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50/80 border border-amber-200/60 text-amber-700 text-xs">
+                <Navigation className="w-3.5 h-3.5 animate-spin shrink-0" />
+                <span>Checking network & office location...</span>
+              </div>
+            )}
+            {locationStatus === "in-office" && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Verified in-office: {nearestOfficeName}</span>
+              </div>
+            )}
+            {locationStatus === "remote" && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium">
+                <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>Remote / External Network Access</span>
+              </div>
+            )}
+            {locationStatus === "denied" && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 text-xs">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Location access denied — standard sign-in active</span>
+              </div>
+            )}
+          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

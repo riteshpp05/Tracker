@@ -45,6 +45,8 @@ import travelRoutes from "./travelRoutes.js";
 import expenseRoutes from "./expenseRoutes.js";
 import recruitmentRoutes from "./recruitmentRoutes.js";
 import payrollRoutes from "./payrollRoutes.js";
+import attendanceRoutes from "./attendanceRoutes.js";
+import enterpriseRoutes from "./enterpriseRoutes.js";
 
 const router = express.Router();
 
@@ -153,6 +155,8 @@ router.use("/travel", travelRoutes);
 router.use("/expenses", expenseRoutes);
 router.use("/recruitment", recruitmentRoutes);
 router.use("/payroll", payrollRoutes);
+router.use("/attendance", attendanceRoutes);
+router.use("/enterprise", enterpriseRoutes);
 // ===============================================
 // DEVELOPMENT MODE - ROUTE LOGGING
 // ===============================================

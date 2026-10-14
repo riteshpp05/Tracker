@@ -56,6 +56,13 @@ import MonthlyPayrollPage from "./components/payroll/MonthlyPayrollPage";
 import StatutoryReportsPage from "./components/payroll/StatutoryReportsPage";
 import EmployeePayslipsPage from "./components/payroll/EmployeePayslipsPage";
 
+// Cloudstine Enterprise Suite Components
+import AttendanceDashboard from "./components/attendance/AttendanceDashboard";
+import AttendanceMasterPage from "./components/admin/AttendanceMasterPage";
+import CompanyHolidaysPage from "./components/enterprise/CompanyHolidaysPage";
+import NoticeBoardPage from "./components/enterprise/NoticeBoardPage";
+import PolicyDocumentPage from "./components/enterprise/PolicyDocumentPage";
+
 // Common Components
 import { Profile } from "./components/common/Profile";
 import { Notifications } from "./components/common/Notifications";
@@ -501,6 +508,66 @@ export function AppRoutes() {
           element={
             <ProtectedRoute roles={["ADMIN", "HR"]}>
               <StatutoryReportsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ============================================ */}
+        {/* ATTENDANCE & ENTERPRISE PORTAL ROUTES */}
+        {/* ============================================ */}
+        <Route
+          path="/attendance"
+          element={
+            <ProtectedRoute>
+              <AttendanceDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employee/attendance"
+          element={
+            <ProtectedRoute>
+              <AttendanceDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/attendance"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR", "MANAGER"]}>
+              <AttendanceMasterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hr/attendance"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR", "MANAGER"]}>
+              <AttendanceMasterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/holidays"
+          element={
+            <ProtectedRoute>
+              <CompanyHolidaysPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/announcements"
+          element={
+            <ProtectedRoute>
+              <NoticeBoardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents"
+          element={
+            <ProtectedRoute>
+              <PolicyDocumentPage />
             </ProtectedRoute>
           }
         />
