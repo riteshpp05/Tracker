@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import api from "../../services/api";
 import timesheetReportService from "../../services/timesheetReportService";
 import { ReportFilterSection } from "./reports/ReportFilterSection";
 import { ReportSummaryCards } from "./reports/ReportSummaryCards";
@@ -193,7 +194,6 @@ export function AdminReports() {
   const handleExportAll = async () => {
     try {
       setExporting(true);
-      const api = (await import("../../services/api")).default;
       const activeFilters = buildActiveFilters(filters);
       const params = {
         ...activeFilters,

@@ -67,8 +67,9 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Middleware to authorize roles
-const authorizeRoles = (allowedRoles) => {
+// Middleware to authorize roles (supports array or spread arguments)
+const authorizeRoles = (...roles) => {
+  const allowedRoles = roles.flat();
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized" });

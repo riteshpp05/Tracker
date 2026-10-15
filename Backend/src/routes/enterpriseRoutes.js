@@ -15,7 +15,7 @@ router.use(authenticateToken);
 router.get("/holidays", (req, res) => enterpriseController.getHolidays(req, res));
 router.post(
   "/holidays",
-  authorizeRoles("ADMIN", "HR"),
+  authorizeRoles(["ADMIN", "HR"]),
   (req, res) => enterpriseController.addHoliday(req, res)
 );
 
@@ -23,7 +23,7 @@ router.post(
 router.get("/announcements", (req, res) => enterpriseController.getAnnouncements(req, res));
 router.post(
   "/announcements",
-  authorizeRoles("ADMIN", "HR"),
+  authorizeRoles(["ADMIN", "HR"]),
   (req, res) => enterpriseController.createAnnouncement(req, res)
 );
 

@@ -20,14 +20,14 @@ router.post("/regularization", (req, res) => attendanceController.requestRegular
 router.get("/regularizations", (req, res) => attendanceController.getRegularizations(req, res));
 router.put(
   "/regularizations/:id/review",
-  authorizeRoles("ADMIN", "HR", "MANAGER"),
+  authorizeRoles(["ADMIN", "HR", "MANAGER"]),
   (req, res) => attendanceController.reviewRegularization(req, res)
 );
 
 // Master Register (Management)
 router.get(
   "/master",
-  authorizeRoles("ADMIN", "HR", "MANAGER"),
+  authorizeRoles(["ADMIN", "HR", "MANAGER"]),
   (req, res) => attendanceController.getAttendanceMasterRegister(req, res)
 );
 

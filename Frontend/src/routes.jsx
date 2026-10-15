@@ -147,6 +147,38 @@ function LayoutWrapper() {
   );
 }
 
+/**
+ * SMART NOTIFICATION REDIRECT COMPONENT
+ * Resolves legacy/backend notification links like /app/leaves, /app/expenses, /app/travel
+ * to the logged-in user's role-appropriate workspace path.
+ */
+function SmartRedirect({ section }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  const role = user.role;
+
+  switch (section) {
+    case "leaves":
+      if (role === "ADMIN") return <Navigate to="/admin/leaves" replace />;
+      if (role === "HR") return <Navigate to="/hr/leaves" replace />;
+      if (role === "MANAGER") return <Navigate to="/manager/leaves" replace />;
+      return <Navigate to="/employee/leaves" replace />;
+    case "expenses":
+    case "travel":
+      if (role === "ADMIN") return <Navigate to="/admin/expenses" replace />;
+      if (role === "HR") return <Navigate to="/hr/expenses" replace />;
+      if (role === "MANAGER") return <Navigate to="/manager/expenses" replace />;
+      return <Navigate to="/employee/expenses" replace />;
+    case "recruitment":
+      return <Navigate to="/hr/recruitment" replace />;
+    case "attendance":
+      if (role === "ADMIN" || role === "HR" || role === "MANAGER") return <Navigate to="/admin/attendance" replace />;
+      return <Navigate to="/employee/attendance" replace />;
+    default:
+      return <Navigate to={getDashboardPath(role)} replace />;
+  }
+}
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -571,6 +603,15 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        {/* ============================================ */}
+        {/* NOTIFICATION SMART REDIRECTS (/app/*) */}
+        {/* ============================================ */}
+        <Route path="/app/leaves" element={<SmartRedirect section="leaves" />} />
+        <Route path="/app/expenses" element={<SmartRedirect section="expenses" />} />
+        <Route path="/app/travel" element={<SmartRedirect section="travel" />} />
+        <Route path="/app/recruitment" element={<SmartRedirect section="recruitment" />} />
+        <Route path="/app/attendance" element={<SmartRedirect section="attendance" />} />
 
         {/* ============================================ */}
         {/* COMMON AUTHENTICATED ROUTES */}

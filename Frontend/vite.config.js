@@ -20,4 +20,17 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "ui-vendor": ["lucide-react", "framer-motion", "sonner", "lenis"],
+          "recharts-vendor": ["recharts"],
+          "xlsx-vendor": ["xlsx"],
+        },
+      },
+    },
+  },
 });

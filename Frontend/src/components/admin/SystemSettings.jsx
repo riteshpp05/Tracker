@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Save, Clock, Bell, ShieldCheck } from "lucide-react";
+import { Save, Clock, Bell, ShieldCheck, Loader2 } from "lucide-react";
+import api from "@/services/api";
 
 export function SystemSettings() {
   const [settings, setSettings] = useState({
@@ -20,13 +21,55 @@ export function SystemSettings() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setFetching(true);
+      const res = await api.get("/settings");
+      if (res.data && Object.keys(res.data).length > 0) {
+        setSettings((prev) => ({
+          ...prev,
+          max_hours_per_day: res.data.max_hours_per_day || prev.max_hours_per_day,
+          max_hours_per_week: res.data.max_hours_per_week || prev.max_hours_per_week,
+          working_days_per_week: res.data.working_days_per_week || prev.working_days_per_week,
+          auto_approve_within_hours: res.data.auto_approve_within_hours || prev.auto_approve_within_hours,
+          allow_overtime: res.data.allow_overtime === "true" || res.data.allow_overtime === true,
+          timesheet_submission_reminder: res.data.timesheet_submission_reminder === "true" || res.data.timesheet_submission_reminder === true,
+          email_notifications_enabled: res.data.email_notifications_enabled === "true" || res.data.email_notifications_enabled === true,
+          approval_required: res.data.approval_required === "true" || res.data.approval_required === true,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+      toast.error("Failed to load live settings from server");
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
       setLoading(true);
-      toast.success("Settings saved successfully");
+      const payload = {
+        max_hours_per_day: String(settings.max_hours_per_day),
+        max_hours_per_week: String(settings.max_hours_per_week),
+        working_days_per_week: String(settings.working_days_per_week),
+        allow_overtime: String(settings.allow_overtime),
+        timesheet_submission_reminder: String(settings.timesheet_submission_reminder),
+        email_notifications_enabled: String(settings.email_notifications_enabled),
+        approval_required: String(settings.approval_required),
+        auto_approve_within_hours: String(settings.auto_approve_within_hours),
+      };
+      await api.put("/settings", { settings: payload });
+      toast.success("System policies & settings saved successfully");
     } catch (error) {
-      toast.error("Failed to save settings");
+      console.error("Save settings error:", error);
+      toast.error(error.response?.data?.error || "Failed to save settings");
     } finally {
       setLoading(false);
     }
@@ -46,11 +89,11 @@ export function SystemSettings() {
         </div>
         <Button
           onClick={handleSave}
-          disabled={loading}
+          disabled={loading || fetching}
           className="bg-[#111827] hover:bg-[#1f2937] text-white rounded-xl h-9 px-4 text-xs font-semibold shadow-xs gap-1.5 shrink-0"
         >
-          <Save className="h-4 w-4" />
-          {loading ? "Saving..." : "Save Settings"}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {loading ? "Saving..." : fetching ? "Loading..." : "Save Settings"}
         </Button>
       </div>
 

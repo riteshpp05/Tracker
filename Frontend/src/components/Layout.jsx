@@ -97,83 +97,169 @@ export const Layout = ({ children }) => {
 
   const navigation = {
     ADMIN: [
-      { name: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
-      { name: "Employees", href: "/admin/users", icon: Users },
-      { name: "Clients", href: "/admin/clients", icon: Briefcase },
-      { name: "Projects", href: "/admin/projects", icon: FolderOpen },
-      { name: "Tickets", href: "/admin/tickets", icon: TicketIcon },
-      { name: "Tasks", href: "/admin/tasks", icon: ListTodo },
-      { name: "Assignments", href: "/admin/assignments", icon: ListChecks },
-      { name: "Timesheet Approvals", href: "/admin/timesheet-approval", icon: Clock },
-      { name: "Attendance Master", href: "/admin/attendance", icon: MapPin },
-      { name: "Leaves", href: "/admin/leaves", icon: CalendarDays },
-      { name: "Travel & Expenses", href: "/admin/expenses", icon: Receipt },
-      { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
-      { name: "Payroll Dashboard", href: "/admin/payroll", icon: Banknote },
-      { name: "Monthly Payroll", href: "/admin/payroll/process", icon: Calculator },
-      { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
-      { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
-      { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
-      { name: "Holidays", href: "/holidays", icon: CalendarDays },
-      { name: "Notice Board", href: "/announcements", icon: Megaphone },
-      { name: "Policy Center", href: "/documents", icon: BookOpen },
-      { name: "Audit Trail", href: "/admin/audit-logs", icon: ShieldAlert },
-      { name: "Reports", href: "/admin/reports", icon: BarChart3 },
-      { name: "Settings", href: "/admin/settings", icon: Settings },
+      {
+        section: "Core Operations",
+        items: [
+          { name: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
+          { name: "Employees", href: "/admin/users", icon: Users },
+          { name: "Clients", href: "/admin/clients", icon: Briefcase },
+          { name: "Projects", href: "/admin/projects", icon: FolderOpen },
+        ],
+      },
+      {
+        section: "Delivery & Timesheets",
+        items: [
+          { name: "Tickets", href: "/admin/tickets", icon: TicketIcon },
+          { name: "Tasks", href: "/admin/tasks", icon: ListTodo },
+          { name: "Assignments", href: "/admin/assignments", icon: ListChecks },
+          { name: "Timesheet Approvals", href: "/admin/timesheet-approval", icon: Clock },
+        ],
+      },
+      {
+        section: "Attendance & Leaves",
+        items: [
+          { name: "Attendance Master", href: "/admin/attendance", icon: MapPin },
+          { name: "Leaves", href: "/admin/leaves", icon: CalendarDays },
+          { name: "Travel & Expenses", href: "/admin/expenses", icon: Receipt },
+        ],
+      },
+      {
+        section: "Payroll & Statutory",
+        items: [
+          { name: "Payroll Dashboard", href: "/admin/payroll", icon: Banknote },
+          { name: "Monthly Payroll", href: "/admin/payroll/process", icon: Calculator },
+          { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
+          { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
+          { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
+        ],
+      },
+      {
+        section: "Enterprise Portal",
+        items: [
+          { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
+          { name: "Holidays", href: "/holidays", icon: CalendarDays },
+          { name: "Notice Board", href: "/announcements", icon: Megaphone },
+          { name: "Policy Center", href: "/documents", icon: BookOpen },
+        ],
+      },
+      {
+        section: "Administration",
+        items: [
+          { name: "Audit Trail", href: "/admin/audit-logs", icon: ShieldAlert },
+          { name: "Reports", href: "/admin/reports", icon: BarChart3 },
+          { name: "System Settings", href: "/admin/settings", icon: Settings },
+        ],
+      },
     ],
     HR: [
-      { name: "Dashboard", href: "/hr/dashboard", icon: LayoutDashboard },
-      { name: "Employees", href: "/admin/users", icon: Users },
-      { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
-      { name: "Attendance Master", href: "/admin/attendance", icon: MapPin },
-      { name: "Leaves", href: "/hr/leaves", icon: CalendarDays },
-      { name: "Travel & Expenses", href: "/hr/expenses", icon: Receipt },
-      { name: "Payroll Dashboard", href: "/admin/payroll", icon: Banknote },
-      { name: "Monthly Payroll", href: "/admin/payroll/process", icon: Calculator },
-      { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
-      { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
-      { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
-      { name: "Holidays", href: "/holidays", icon: CalendarDays },
-      { name: "Notice Board", href: "/announcements", icon: Megaphone },
-      { name: "Policy Center", href: "/documents", icon: BookOpen },
-      { name: "Reports", href: "/admin/reports", icon: BarChart3 },
+      {
+        section: "Core Operations",
+        items: [
+          { name: "Dashboard", href: "/hr/dashboard", icon: LayoutDashboard },
+          { name: "Employees", href: "/admin/users", icon: Users },
+          { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
+        ],
+      },
+      {
+        section: "Attendance & Leaves",
+        items: [
+          { name: "Attendance Master", href: "/admin/attendance", icon: MapPin },
+          { name: "Leaves", href: "/hr/leaves", icon: CalendarDays },
+          { name: "Travel & Expenses", href: "/hr/expenses", icon: Receipt },
+        ],
+      },
+      {
+        section: "Payroll Suite",
+        items: [
+          { name: "Payroll Dashboard", href: "/admin/payroll", icon: Banknote },
+          { name: "Monthly Payroll", href: "/admin/payroll/process", icon: Calculator },
+          { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
+          { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
+          { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
+        ],
+      },
+      {
+        section: "Enterprise Portal",
+        items: [
+          { name: "Holidays", href: "/holidays", icon: CalendarDays },
+          { name: "Notice Board", href: "/announcements", icon: Megaphone },
+          { name: "Policy Center", href: "/documents", icon: BookOpen },
+          { name: "Reports", href: "/admin/reports", icon: BarChart3 },
+        ],
+      },
     ],
     MANAGER: [
-      { name: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
-      { name: "Attendance Desk", href: "/employee/attendance", icon: MapPin },
-      { name: "Team Attendance", href: "/admin/attendance", icon: Clock },
-      { name: "My Tickets", href: "/manager/my-tickets", icon: TicketIcon },
-      { name: "Project Tickets", href: "/manager/tickets", icon: TicketIcon },
-      { name: "Assign Tickets", href: "/manager/assignments", icon: ListChecks },
-      { name: "Timesheet Entry", href: "/manager/timesheet", icon: Clock },
-      { name: "Timesheet Approvals", href: "/manager/approvals", icon: ListChecks },
-      { name: "Leave Approvals", href: "/manager/leaves", icon: CalendarDays },
-      { name: "Travel & Expenses", href: "/manager/expenses", icon: Receipt },
-      { name: "Holidays", href: "/holidays", icon: CalendarDays },
-      { name: "Notice Board", href: "/announcements", icon: Megaphone },
-      { name: "Policy Center", href: "/documents", icon: BookOpen },
-      { name: "Reports", href: "/manager/reports", icon: BarChart3 },
+      {
+        section: "Overview & Team",
+        items: [
+          { name: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
+          { name: "Attendance Desk", href: "/employee/attendance", icon: MapPin },
+          { name: "Team Attendance", href: "/admin/attendance", icon: Clock },
+        ],
+      },
+      {
+        section: "Project & Tickets",
+        items: [
+          { name: "My Tickets", href: "/manager/my-tickets", icon: TicketIcon },
+          { name: "Project Tickets", href: "/manager/tickets", icon: TicketIcon },
+          { name: "Assign Tickets", href: "/manager/assignments", icon: ListChecks },
+        ],
+      },
+      {
+        section: "Timesheets & Approvals",
+        items: [
+          { name: "Timesheet Entry", href: "/manager/timesheet", icon: Clock },
+          { name: "Timesheet Approvals", href: "/manager/approvals", icon: ListChecks },
+          { name: "Leave Approvals", href: "/manager/leaves", icon: CalendarDays },
+          { name: "Travel & Expenses", href: "/manager/expenses", icon: Receipt },
+        ],
+      },
+      {
+        section: "Company & Reports",
+        items: [
+          { name: "Holidays", href: "/holidays", icon: CalendarDays },
+          { name: "Notice Board", href: "/announcements", icon: Megaphone },
+          { name: "Policy Center", href: "/documents", icon: BookOpen },
+          { name: "Reports", href: "/manager/reports", icon: BarChart3 },
+        ],
+      },
     ],
     EMPLOYEE: [
-      { name: "Dashboard", href: "/employee/dashboard", icon: LayoutDashboard },
-      { name: "Attendance Desk", href: "/employee/attendance", icon: MapPin },
-      { name: "Timesheet", href: "/employee/timesheet", icon: Clock },
-      { name: "Tasks/Tickets", href: "/employee/my-tickets", icon: TicketIcon },
-      { name: "Leaves", href: "/employee/leaves", icon: CalendarDays },
-      { name: "Travel & Expenses", href: "/employee/expenses", icon: Receipt },
-      { name: "My Payslips", href: "/employee/payslips", icon: Receipt },
-      { name: "Timesheet History", href: "/employee/history", icon: ClipboardList },
-      { name: "Holidays", href: "/holidays", icon: CalendarDays },
-      { name: "Notice Board", href: "/announcements", icon: Megaphone },
-      { name: "Policy Center", href: "/documents", icon: BookOpen },
+      {
+        section: "Daily Workspace",
+        items: [
+          { name: "Dashboard", href: "/employee/dashboard", icon: LayoutDashboard },
+          { name: "Attendance Desk", href: "/employee/attendance", icon: MapPin },
+          { name: "Timesheet", href: "/employee/timesheet", icon: Clock },
+          { name: "Tasks/Tickets", href: "/employee/my-tickets", icon: TicketIcon },
+        ],
+      },
+      {
+        section: "Self-Service",
+        items: [
+          { name: "Leaves", href: "/employee/leaves", icon: CalendarDays },
+          { name: "Travel & Expenses", href: "/employee/expenses", icon: Receipt },
+          { name: "My Payslips", href: "/employee/payslips", icon: Receipt },
+          { name: "Timesheet History", href: "/employee/history", icon: ClipboardList },
+        ],
+      },
+      {
+        section: "Company Portal",
+        items: [
+          { name: "Holidays", href: "/holidays", icon: CalendarDays },
+          { name: "Notice Board", href: "/announcements", icon: Megaphone },
+          { name: "Policy Center", href: "/documents", icon: BookOpen },
+        ],
+      },
     ],
   };
 
-  const currentNav = user ? navigation[user.role] || [] : [];
+  const currentSections = user ? navigation[user.role] || [] : [];
+  const allNavItems = currentSections.flatMap((s) => s.items || []);
 
   // Find page title from current path
   const pageTitle =
-    currentNav.find((item) => item.href === location.pathname)?.name ||
+    allNavItems.find((item) => item.href === location.pathname)?.name ||
     "Workspace";
 
   return (
@@ -211,34 +297,38 @@ export const Layout = ({ children }) => {
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1" data-lenis-prevent="true">
-          <div className="px-2 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#98A2B3]">
-            Workspace
-          </div>
-          {currentNav.map((item) => {
-            const isActive = location.pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] font-medium transition-all duration-150 ${
-                  isActive
-                    ? "bg-[#111827] text-white shadow-xs"
-                    : "text-[#667085] hover:text-[#172033] hover:bg-[#F7F8FA]"
-                }`}
-              >
-                {Icon && (
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      isActive ? "text-white" : "text-[#667085] group-hover:text-[#172033]"
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-3" data-lenis-prevent="true">
+          {currentSections.map((group, groupIdx) => (
+            <div key={group.section || groupIdx} className="space-y-0.5">
+              <div className="px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#98A2B3]">
+                {group.section}
+              </div>
+              {group.items.map((item) => {
+                const isActive = location.pathname === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`group flex items-center gap-2.5 h-9 px-3 rounded-xl text-[13px] font-medium transition-all duration-150 ${
+                      isActive
+                        ? "bg-[#111827] text-white shadow-xs font-semibold"
+                        : "text-[#667085] hover:text-[#172033] hover:bg-[#F7F8FA]"
                     }`}
-                  />
-                )}
-                <span className="truncate">{item.name}</span>
-              </Link>
-            );
-          })}
+                  >
+                    {Icon && (
+                      <Icon
+                        className={`w-4 h-4 shrink-0 transition-colors ${
+                          isActive ? "text-white" : "text-[#667085] group-hover:text-[#172033]"
+                        }`}
+                      />
+                    )}
+                    <span className="truncate">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Support section at sidebar bottom */}
