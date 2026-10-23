@@ -35,6 +35,7 @@ const errorHandler = (err, req, res, next) => {
   // Send JSON response
   res.status(statusCode).json({
     error: message,
+    detail: err.detail || err.message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

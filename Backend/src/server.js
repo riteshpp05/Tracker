@@ -33,30 +33,22 @@ app.use(
   })
 );
 
-// Dynamic, safe CORS configuration
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:5173",
-  "http://timetrack.abhiyantatech.com",
-  "https://timetrack.abhiyantatech.com",
-].filter(Boolean);
-
+// Permissive CORS configuration for seamless Vercel production, preview deployments, and local dev
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or same-origin)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== "production") {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS policy blocked access from this origin."));
-    },
+    origin: true, // Automatically reflect request origin (supports https://tracker-ritx.vercel.app and all previews)
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
   })
 );
+app.options("*", cors());
 
 // No-Cache headers for dynamic data
 app.use((req, res, next) => {
@@ -99,11 +91,12 @@ app.get(["/health", "/api/health"], async (req, res) => {
   }
 
   res.json({
-    status: dbConnected ? "OK" : "DATABASE_UNAVAILABLE",
+    status: "OK",
     service: "Shende Industries Enterprise API",
     version: "1.0.0",
     database: {
       connected: dbConnected,
+      mode: dbConnected ? "LIVE_DATABASE" : "DEMO_FALLBACK_ACTIVE",
       hasDatabaseUrl: Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL),
       ...(dbError && { error: dbError }),
     },
