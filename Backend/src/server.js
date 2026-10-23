@@ -10,6 +10,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 
 // Import custom middleware & routes
+import pool from "./config/database.js";
 import routes from "./routes/index.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import errorHandler from "./middleware/errorHandler.js";
@@ -86,12 +87,26 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("combined"));
 }
 
-// Health check endpoint
-app.get("/health", (req, res) => {
+// Health check endpoint with live database probe
+app.get(["/health", "/api/health"], async (req, res) => {
+  let dbConnected = false;
+  let dbError = null;
+  try {
+    await pool.query("SELECT 1");
+    dbConnected = true;
+  } catch (e) {
+    dbError = e.message;
+  }
+
   res.json({
-    status: "OK",
+    status: dbConnected ? "OK" : "DATABASE_UNAVAILABLE",
     service: "Shende Industries Enterprise API",
     version: "1.0.0",
+    database: {
+      connected: dbConnected,
+      hasDatabaseUrl: Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL),
+      ...(dbError && { error: dbError }),
+    },
     timestamp: new Date().toISOString(),
   });
 });
@@ -103,10 +118,12 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use("/uploads", express.static(uploadsPath));
 
-// API routes
+// API routes — support /api, /api/v1, and root / (in case Vercel service strips /api prefix)
 app.use("/api", routes);
-app.use("/api/v1", routes); // Support both /api and /api/v1
+app.use("/api/v1", routes);
 app.use("/api/email", emailRoutes);
+app.use("/email", emailRoutes);
+app.use("/", routes);
 
 // Production Static Serving
 if (process.env.NODE_ENV === "production") {

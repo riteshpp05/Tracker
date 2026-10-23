@@ -8,7 +8,14 @@ types.setTypeParser(1082, (stringValue) => {
   return stringValue;
 });
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// Clean and sanitize connection string (trim whitespace, accidental quotes, or channel_binding)
+let rawConnectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || "")
+  .trim()
+  .replace(/^["']|["']$/g, "");
+
+const connectionString = rawConnectionString
+  ? rawConnectionString.replace(/channel_binding=[^&]+&?/g, "").replace(/[?&]$/, "")
+  : null;
 
 const isLocalhost = (str) =>
   !str || str.includes("localhost") || str.includes("127.0.0.1");

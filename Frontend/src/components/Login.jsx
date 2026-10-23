@@ -139,7 +139,13 @@ export function Login() {
         : "/employee/dashboard";
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      toast.error(err?.response?.data?.error || err?.message || "Login failed");
+      const errData = err?.response?.data;
+      const rawMsg =
+        (typeof errData?.error === "string" ? errData.error : null) ||
+        (typeof errData?.message === "string" ? errData.message : null) ||
+        (typeof err?.message === "string" ? err.message : null) ||
+        "Login failed. Please check credentials or database connection.";
+      toast.error(rawMsg);
     } finally {
       setIsLoading(false);
     }
