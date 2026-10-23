@@ -20,8 +20,8 @@ export const HomePage = () => {
 
           {/* Sub-copy */}
           <p className="text-[16px] text-[#667085] leading-relaxed max-w-md mx-auto">
-            PatilOne helps your organisation manage workforce operations, projects, timesheets,
-            and HR workflows — all in one connected platform.
+            Shende Industries enterprise operations platform: packaging engineering projects,
+            shift tracking, timesheets, and statutory Indian payroll — all in one connected system.
           </p>
 
           {/* CTAs */}

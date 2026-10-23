@@ -44,7 +44,7 @@ export const PolicyDocumentPage = () => {
   };
 
   const handleDownload = (doc) => {
-    const textContent = `${doc.title}\nVersion: ${doc.version}\nCategory: ${doc.category}\n\n${doc.description || ""}\n\nOfficial corporate policy issued by PatilOne Human Resources & Legal Compliance.`;
+    const textContent = `${doc.title}\nVersion: ${doc.version}\nCategory: ${doc.category}\n\n${doc.description || ""}\n\nOfficial corporate policy issued by Shende Industries Human Resources & Legal Compliance.`;
     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -205,14 +205,14 @@ export const PolicyDocumentPage = () => {
                 <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 space-y-2">
                   <p className="font-bold text-slate-800">Compliance & Regulatory Notice:</p>
                   <p>
-                    All employees, contractors, and managers of PatilOne (Shende Industries) are required to strictly adhere to this documentation in accordance with Indian statutory requirements, internal audits, and workplace standards.
+                    All employees, contractors, and managers of Shende Industries Pvt. Ltd. are required to strictly adhere to this documentation in accordance with Indian statutory requirements, internal audits, and workplace standards.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-              <span className="text-xs text-slate-400">PatilOne Corporate Policy Repository</span>
+              <span className="text-xs text-slate-400">Shende Industries Corporate Policy Repository</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setActiveDocPreview(null)}

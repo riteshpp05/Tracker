@@ -250,7 +250,7 @@ export const PayslipModal = ({ isOpen, onClose, slipData }) => {
                 Note & Security Notice:
               </p>
               <p className="text-slate-500 leading-relaxed">
-                This document is a computer-generated salary slip and does not require a physical signature when viewed electronically within PatilOne Enterprise Portal. Confidential property of Shende Industries.
+                This document is a computer-generated salary slip and does not require a physical signature when viewed electronically within Shende Industries Enterprise Portal. Confidential property of Shende Industries Pvt. Ltd.
               </p>
             </div>
             <div className="text-right mt-4 md:mt-0">

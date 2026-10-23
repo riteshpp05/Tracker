@@ -1,8 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
-  <rect width="40" height="40" rx="8" fill="#111827"/>
-  <rect x="11" y="10" width="4" height="20" rx="1.5" fill="white"/>
-  <rect x="11" y="10" width="13" height="4" rx="1.5" fill="white"/>
-  <rect x="11" y="20" width="13" height="4" rx="1.5" fill="white"/>
-  <rect x="20" y="10" width="4" height="14" rx="1.5" fill="white"/>
-  <circle cx="29" cy="30" r="3" fill="#6558D9"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="siplGrad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#1E293B" />
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="12" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FB923C" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="12" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Base Container -->
+  <rect width="48" height="48" rx="10" fill="url(#siplGrad)" />
+  <rect x="1" y="1" width="46" height="46" rx="9" stroke="#334155" stroke-width="1.5" />
+  
+  <!-- Industrial Packaging Box / Strapping Geometric Motif -->
+  <!-- Top Arch of 'S' in Vibrant Packaging Orange -->
+  <path d="M34 16.5C34 14.0147 31.9853 12 29.5 12H19C16.2386 12 14 14.2386 14 17C14 19.7614 16.2386 22 19 22H29C31.7614 22 34 24.2386 34 27C34 29.7614 31.7614 32 29 32H18.5C16.0147 32 14 29.9853 14 27.5" 
+        stroke="url(#orangeGrad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        
+  <!-- Precision Technical Strapping Interlock Accent in Blue -->
+  <circle cx="34" cy="16.5" r="2.5" fill="#38BDF8" />
+  <circle cx="14" cy="27.5" r="2.5" fill="#38BDF8" />
+  <path d="M21 27H27" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
 </svg>

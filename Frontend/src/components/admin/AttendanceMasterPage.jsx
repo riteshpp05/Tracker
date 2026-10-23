@@ -142,7 +142,7 @@ export const AttendanceMasterPage = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `PatilOne_Attendance_${selectedDate}.csv`);
+    link.setAttribute("download", `ShendeIndustries_Attendance_${selectedDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

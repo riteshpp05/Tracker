@@ -2,23 +2,41 @@ import "dotenv/config";
 import pkg from "pg";
 const { Pool, types } = pkg;
 
-// ✅ FIX: Force Postgres to return dates as strings (YYYY-MM-DD)
-// Type ID 1082 corresponds to the DATE type in Postgres.
-// This prevents the driver from converting it to a JS Date object (which applies local timezone).
+// Force Postgres to return dates as strings (YYYY-MM-DD)
+// Type ID 1082 corresponds to DATE type in Postgres.
 types.setTypeParser(1082, (stringValue) => {
   return stringValue;
 });
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT || 5432,
-  max: 20, // max clients in the pool
-  idleTimeoutMillis: 30000, // close idle clients after 30s
-  connectionTimeoutMillis: 2000, // error after 2s if cannot connect
-});
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+const isLocalhost = (str) =>
+  !str || str.includes("localhost") || str.includes("127.0.0.1");
+
+const poolConfig = connectionString
+  ? {
+      connectionString,
+      ssl: isLocalhost(connectionString) ? false : { rejectUnauthorized: false },
+      max: process.env.VERCEL ? 5 : 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    }
+  : {
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: process.env.DB_PORT || 5432,
+      ssl:
+        process.env.DB_SSL === "true"
+          ? { rejectUnauthorized: false }
+          : false,
+      max: process.env.VERCEL ? 5 : 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    };
+
+const pool = new Pool(poolConfig);
 
 // Test database connection
 pool.on("connect", () => {
@@ -26,8 +44,11 @@ pool.on("connect", () => {
 });
 
 pool.on("error", (err) => {
-  console.error("❌ Unexpected database error:", err);
-  process.exit(-1);
+  console.error("❌ Unexpected database pool error:", err.message);
+  // Do not exit in serverless/production to allow lambdas to recover
+  if (!process.env.VERCEL && process.env.NODE_ENV !== "production") {
+    // optional debug in local
+  }
 });
 
 export default pool;

@@ -151,13 +151,13 @@ export function Login() {
         {/* Logo + wordmark */}
         <div className="text-center space-y-2">
           <div className="flex justify-center">
-            <img src="/favicon.svg" alt="PatilOne" className="w-10 h-10 rounded-xl" />
+            <img src="/favicon.svg" alt="Shende Industries" className="w-10 h-10 rounded-xl" />
           </div>
           <h1 className="text-[22px] font-bold text-[#172033] tracking-tight">
-            Sign in to PatilOne
+            Shende Industries Portal
           </h1>
           <p className="text-[13px] text-[#667085]">
-            Enter your corporate credentials to access your workspace.
+            Enter your corporate credentials to access your operations &amp; payroll workspace.
           </p>
         </div>
 
@@ -281,7 +281,7 @@ export function Login() {
             Authorized personnel only. Unauthorized access is prohibited.
           </p>
           <Link to="/" className="text-[12px] text-[#6558D9] hover:underline">
-            ← Back to PatilOne website
+            ← Back to Shende Industries website
           </Link>
         </div>
       </div>

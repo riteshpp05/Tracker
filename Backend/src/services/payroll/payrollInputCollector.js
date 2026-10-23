@@ -3,7 +3,7 @@ import pool from "../../config/database.js";
 
 /**
  * Payroll Input Collector
- * Aggregates all live data from PatilOne:
+ * Aggregates all live data from Shende Industries Portal:
  * - Active employees & compensation assignments
  * - Approved leaves (Paid vs LOP)
  * - Daily timesheets (logged & approved hours)

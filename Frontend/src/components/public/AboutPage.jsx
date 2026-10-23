@@ -19,14 +19,15 @@ export const AboutPage = () => {
       <section className="bg-white border-b border-[#E5E7EB] py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-6 space-y-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#6558D9]">
-            About PatilOne
+            About Shende Industries
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#172033] tracking-tight">
-            Work. Teams. In Sync.
+            Innovative Packaging. Teams in Sync.
           </h1>
           <p className="text-[#667085] text-lg max-w-2xl leading-relaxed">
-            PatilOne is an enterprise workforce and operations platform designed to help
-            organizations manage people, projects, timesheets, and governance seamlessly in one place.
+            Shende Industries Pvt. Ltd. is a premier industrial packaging solutions and machinery
+            automation company headquartered in Baner, Pune. Our enterprise portal coordinates
+            workforce operations, plant engineering, field installations, and compliant payroll.
           </p>
         </div>
       </section>
@@ -44,7 +45,7 @@ export const AboutPage = () => {
               create administrative friction and lack compliance tracking.
             </p>
             <p className="text-[#667085] text-sm leading-relaxed">
-              PatilOne bridges the operational gap between resource management, daily time logging,
+              Shende Industries Enterprise Portal bridges the operational gap between packaging plant management, daily time logging,
               manager approvals, HR talent acquisition, and executive auditing.
             </p>
 
@@ -94,7 +95,7 @@ export const AboutPage = () => {
         {/* CTA Banner */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 text-center space-y-4">
           <h3 className="text-xl font-bold text-[#172033]">
-            Experience the PatilOne Difference
+            Experience the Shende Industries Platform
           </h3>
           <p className="text-[#667085] text-sm max-w-lg mx-auto">
             Ready to explore our open roles or access your internal employee workspace?

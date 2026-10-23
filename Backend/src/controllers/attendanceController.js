@@ -118,7 +118,7 @@ class AttendanceController {
           today,
           latitude || null,
           longitude || null,
-          address || (isGeofenceCompliant ? "PatilOne Corporate Office" : "Remote / External Location"),
+          address || (isGeofenceCompliant ? "Shende Industries Baner Corporate Office" : "Remote / External Location"),
           isGeofenceCompliant,
           detectedWorkMode,
           attendanceStatus,
@@ -202,7 +202,7 @@ class AttendanceController {
         [
           latitude || null,
           longitude || null,
-          address || "PatilOne Corporate Office",
+          address || "Shende Industries Baner Corporate Office",
           totalWorkMinutes,
           totalBreakMinutes,
           notes ? `Checkout note: ${notes}` : "",

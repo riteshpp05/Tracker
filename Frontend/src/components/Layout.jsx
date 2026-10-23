@@ -40,7 +40,7 @@ import {
   MapPin,
 } from "lucide-react";
 
-const BRAND_NAV = "#111827"; // PatilOne navy
+const BRAND_NAV = "#111827"; // SIPL Brand navy
 const BRAND_ACTIVE = "#6558D9"; // violet accent
 
 export const Layout = ({ children }) => {
@@ -88,7 +88,7 @@ export const Layout = ({ children }) => {
   };
 
   const getUserInitials = (name) => {
-    if (!name) return "P1";
+    if (!name) return "SI";
     const parts = name.trim().split(" ");
     return parts.length === 1
       ? parts[0][0].toUpperCase()
@@ -281,13 +281,13 @@ export const Layout = ({ children }) => {
         {/* Brand header — h-14 aligned with top bar */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-[#E5E7EB]">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="PatilOne" className="w-7 h-7 rounded-lg" />
+            <img src="/favicon.svg" alt="Shende Industries" className="w-7 h-7 rounded-lg" />
             <div className="flex flex-col">
               <span className="font-bold text-[14px] text-[#172033] tracking-tight leading-none">
-                PatilOne
+                Shende Industries
               </span>
-              <span className="text-[11px] text-[#667085] mt-0.5 font-medium">
-                Tracker
+              <span className="text-[10px] text-[#667085] mt-0.5 font-medium tracking-wide">
+                Operations &amp; Payroll
               </span>
             </div>
           </Link>
@@ -367,7 +367,7 @@ export const Layout = ({ children }) => {
             </button>
 
             {/* Brand visible on mobile */}
-            <span className="lg:hidden font-bold text-[14px] text-[#172033]">PatilOne</span>
+            <span className="lg:hidden font-bold text-[14px] text-[#172033]">Shende Industries</span>
 
             {/* Search bar — matches Cloudstine */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-[#F7F8FA] border border-[#E5E7EB] rounded-lg w-72">

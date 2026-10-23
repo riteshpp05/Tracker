@@ -1,5 +1,5 @@
 -- =====================================================================
--- PATILONE ENTERPRISE PORTAL — SYSTEM SETTINGS SCHEMA V1
+-- SHENDE INDUSTRIES ENTERPRISE PORTAL — SYSTEM SETTINGS SCHEMA V1
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS system_settings (

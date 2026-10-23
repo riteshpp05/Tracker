@@ -6,16 +6,16 @@
 INSERT INTO organizations (id, name, code, tagline, website, contact_email, phone, address, timezone, currency, working_hours_per_week)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
-    'Shende Industries',
-    'SHENDE',
-    'Precision Engineering & Industrial Automation',
-    'https://www.shendeindustries.com',
-    'contact@shendeindustries.com',
-    '+1 (555) 019-2834',
-    '100 Industrial Parkway, Suite 400, Chicago, IL 60601',
-    'America/Chicago',
-    'USD',
-    40.0
+    'Shende Industries Pvt. Ltd.',
+    'SIPL',
+    'Your Trusted Partner for Innovative Packaging Solutions',
+    'https://shendeindustries.com',
+    'info@shendeindustries.com',
+    '+91 9022541929',
+    'Off. No. 6, Second Floor, Aditi Commerce, Above Ugaoo Store, Baner Road, Pune - 411045, Maharashtra, India',
+    'Asia/Kolkata',
+    'INR',
+    48.0
 ) ON CONFLICT (code) DO NOTHING;
 
 -- Company Settings
@@ -23,13 +23,13 @@ INSERT INTO company_settings (id, organization_id, company_name, tagline, contac
 VALUES (
     1,
     'a0000000-0000-0000-0000-000000000001',
-    'Shende Industries',
-    'Precision Engineering & Industrial Automation',
-    'contact@shendeindustries.com',
-    '+1 (555) 019-2834',
-    '100 Industrial Parkway, Suite 400, Chicago, IL 60601',
-    'America/Chicago',
-    40.0
+    'Shende Industries Pvt. Ltd.',
+    'Your Trusted Partner for Innovative Packaging Solutions',
+    'info@shendeindustries.com',
+    '+91 9022541929',
+    'Off. No. 6, Second Floor, Aditi Commerce, Above Ugaoo Store, Baner Road, Pune - 411045, Maharashtra, India',
+    'Asia/Kolkata',
+    48.0
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 2. User Roles

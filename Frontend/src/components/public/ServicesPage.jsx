@@ -78,7 +78,7 @@ export const ServicesPage = () => {
       <section className="bg-white border-b border-[#E5E7EB] py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-6 space-y-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#6558D9]">
-            PatilOne Platform
+            Shende Industries Platform
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#172033] tracking-tight">
             Integrated Enterprise Solutions
@@ -136,7 +136,7 @@ export const ServicesPage = () => {
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 text-center space-y-3">
           <h3 className="text-xl font-bold text-[#172033]">Ready to streamline operations?</h3>
           <p className="text-[#667085] text-xs max-w-md mx-auto">
-            Log in to the PatilOne employee portal or browse current openings on our careers page.
+            Log in to the Shende Industries employee portal or browse current openings on our careers page.
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <Link

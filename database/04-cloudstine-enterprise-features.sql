@@ -1,5 +1,5 @@
 -- =====================================================================
--- PATILONE ENTERPRISE EXTENSION — CLOUDSTINE-INSPIRED SUITE (V1)
+-- SHENDE INDUSTRIES ENTERPRISE EXTENSION — WORKFORCE SUITE (V1)
 -- 1. Geofenced Attendance & Punch System (Check-In / Check-Out)
 -- 2. Break Tracking & Regularization Requests
 -- 3. Office Geofence Master & Location Rules
@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS office_geofences (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Seed Default Geofence (Pune Tech Center & Mumbai Operations)
+-- Seed Default Geofence (Shende Industries Baner HQ & Pune Packaging Hub)
 INSERT INTO office_geofences (name, code, latitude, longitude, radius_meters, address, city, state, country)
 VALUES 
-    ('PatilOne Pune Tech Park HQ', 'PUNE-HQ', 18.5204303, 73.8567437, 500, 'Plot 42, Hinjewadi Phase 1, Rajiv Gandhi Infotech Park', 'Pune', 'Maharashtra', 'India'),
-    ('PatilOne Mumbai Regional Hub', 'MUMBAI-HUB', 19.0760900, 72.8774260, 600, 'Bandra Kurla Complex, G-Block', 'Mumbai', 'Maharashtra', 'India')
+    ('Shende Industries Baner Corporate Office', 'SHENDE-BANER-HQ', 18.5590000, 73.7868000, 500, 'Off. No. 6, 2nd Flr, Aditi Commerce, Above Ugaoo, Baner Rd', 'Pune', 'Maharashtra', 'India'),
+    ('Shende Industries Packaging & Logistics Hub', 'SHENDE-PUNE-PLANT', 18.5204303, 73.8567437, 600, 'Plot 42, Hinjewadi Phase 1 / Pune Plant Hub', 'Pune', 'Maharashtra', 'India')
 ON CONFLICT (code) DO NOTHING;
 
 -- 2. Daily Attendance Logs (Geofenced Check-in / Punch)
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS company_announcements (
 -- Seed Announcements
 INSERT INTO company_announcements (title, content, category, priority, is_published)
 VALUES
-    ('Welcome to PatilOne Enterprise Portal V2', 'We are pleased to introduce our integrated HRMS suite featuring native Indian payroll, automated statutory compliance (EPF, ESIC, PT, TDS), and geofenced real-time attendance.', 'GENERAL', 'HIGH', true),
+    ('Welcome to Shende Industries Enterprise Portal V2', 'We are pleased to introduce our integrated workforce suite featuring native Indian payroll, automated statutory compliance (EPF, ESIC, PT, TDS), and geofenced real-time attendance.', 'GENERAL', 'HIGH', true),
     ('Diwali Holiday Schedule & Early Payroll Cutoff', 'Kindly note that November payroll cutoff will be processed 2 days prior to Diwali festivities. Ensure timesheet and expense submissions are approved on schedule.', 'PAYROLL', 'HIGH', true),
     ('New Health & ESI Coverage Verification', 'All technical and operator-grade associates eligible for ESIC can now verify their e-Pehchan card and dispensary details via the Employee Portal.', 'HR', 'NORMAL', true)
 ON CONFLICT DO NOTHING;
@@ -168,8 +168,8 @@ CREATE TABLE IF NOT EXISTS company_documents (
 -- Seed Policy Documents
 INSERT INTO company_documents (title, description, category, file_name, file_url, file_size_kb, version)
 VALUES
-    ('Employee Code of Conduct & Ethics', 'Standard corporate guidelines on professional conduct, integrity, and anti-harassment.', 'HANDBOOK', 'PatilOne_Code_of_Conduct_2026.pdf', '/docs/policies/code-of-conduct.pdf', 340, '2026.1'),
-    ('Travel & Business Expense Policy', 'Approved allowances for domestic travel, lodging caps, per-diem meals, and mileage rates.', 'POLICY', 'PatilOne_Travel_Policy_2026.pdf', '/docs/policies/travel-policy.pdf', 215, '2026.1'),
-    ('Leave & Working Hours Guidelines', 'Rules governing paid leaves, sick leaves, casual leaves, compensatory offs, and core shift hours.', 'POLICY', 'PatilOne_Leave_Guidelines.pdf', '/docs/policies/leave-guidelines.pdf', 180, '2026.2'),
-    ('Indian Statutory Benefits & PF Guide', 'Explains EPF 12%, EPS pension allocation, EDLI insurance, ESIC benefits, and Maharashtra PT slabs.', 'COMPLIANCE', 'PatilOne_Statutory_Benefits_Guide.pdf', '/docs/policies/statutory-guide.pdf', 420, '2026.1')
+    ('Employee Code of Conduct & Ethics', 'Standard corporate guidelines on professional conduct, integrity, and anti-harassment.', 'HANDBOOK', 'Shende_Code_of_Conduct_2026.pdf', '/docs/policies/code-of-conduct.pdf', 340, '2026.1'),
+    ('Travel & Business Expense Policy', 'Approved allowances for domestic travel, lodging caps, per-diem meals, and mileage rates.', 'POLICY', 'Shende_Travel_Policy_2026.pdf', '/docs/policies/travel-policy.pdf', 215, '2026.1'),
+    ('Leave & Working Hours Guidelines', 'Rules governing paid leaves, sick leaves, casual leaves, compensatory offs, and core shift hours.', 'POLICY', 'Shende_Leave_Guidelines.pdf', '/docs/policies/leave-guidelines.pdf', 180, '2026.2'),
+    ('Indian Statutory Benefits & PF Guide', 'Explains EPF 12%, EPS pension allocation, EDLI insurance, ESIC benefits, and Maharashtra PT slabs.', 'COMPLIANCE', 'Shende_Statutory_Benefits_Guide.pdf', '/docs/policies/statutory-guide.pdf', 420, '2026.1')
 ON CONFLICT DO NOTHING;

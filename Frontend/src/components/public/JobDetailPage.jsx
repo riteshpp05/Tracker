@@ -190,7 +190,7 @@ export const JobDetailPage = () => {
             <div className="sticky top-20 bg-white rounded-2xl border border-[#E5E7EB] p-6 shadow-xs space-y-4">
               <h3 className="text-base font-bold text-[#172033]">Apply for this Position</h3>
               <p className="text-[11px] text-[#667085]">
-                Submit your credentials directly to the PatilOne talent acquisition team.
+                Submit your credentials directly to the Shende Industries talent acquisition team.
               </p>
 
               {submitted ? (
@@ -299,7 +299,7 @@ export const JobDetailPage = () => {
                       className="mt-0.5 rounded border-[#E5E7EB] text-[#6558D9] focus:ring-[#6558D9]"
                     />
                     <label htmlFor="consent" className="text-[11px] text-[#667085]">
-                      I agree to PatilOne processing my application per the privacy policy.
+                      I agree to Shende Industries processing my application per the privacy policy.
                     </label>
                   </div>
 

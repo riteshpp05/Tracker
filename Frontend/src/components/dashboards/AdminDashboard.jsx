@@ -262,7 +262,7 @@ const AdminDashboard = () => {
           <div className="space-y-3 text-xs">
             <div className="flex justify-between py-1.5 border-b border-[#F7F8FA]">
               <span className="text-[#667085]">Platform Version</span>
-              <span className="font-semibold text-[#172033]">PatilOne 2.4 Enterprise</span>
+              <span className="font-semibold text-[#172033]">Shende Industries V2.4 Enterprise</span>
             </div>
             <div className="flex justify-between py-1.5 border-b border-[#F7F8FA]">
               <span className="text-[#667085]">Authentication Engine</span>

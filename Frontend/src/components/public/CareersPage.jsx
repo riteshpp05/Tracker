@@ -40,19 +40,19 @@ export const CareersPage = () => {
       experience_level: "Senior",
       salary_range: "$120,000 - $150,000 / year",
       description:
-        "Design minimal, ultra-usable enterprise SaaS interfaces, design systems, and workflow experiences for PatilOne customers.",
+        "Design minimal, ultra-usable enterprise SaaS interfaces, design systems, and workflow experiences for Shende Industries customers.",
     },
     {
       id: "b4000000-0000-0000-0000-000000000003",
-      slug: "solutions-architect",
-      title: "Enterprise Solutions Architect",
-      department_name: "Customer Operations",
-      location: "Chicago, IL (Hybrid)",
+      slug: "packaging-automation-lead",
+      title: "Packaging Automation & Systems Lead",
+      department_name: "Industrial Automation",
+      location: "Pune, MH (Baner & Plant)",
       employment_type: "Full-time",
       experience_level: "Lead",
-      salary_range: "$140,000 - $175,000 / year",
+      salary_range: "₹12,00,000 - ₹18,00,000 / year",
       description:
-        "Guide enterprise clients through custom integrations, workflow configuration, and secure workforce migration.",
+        "Lead high-speed strapping machine deployment, pneumatic tool calibration, and factory packaging automation client projects.",
     },
   ];
 
@@ -93,7 +93,7 @@ export const CareersPage = () => {
       <section className="bg-white border-b border-[#E5E7EB] py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-6 space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-[#6558D9] text-[11px] font-semibold tracking-wide uppercase">
-            Careers at PatilOne
+            Careers at Shende Industries
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#172033] tracking-tight">
             Build the platform that keeps teams in sync.

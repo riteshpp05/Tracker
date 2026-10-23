@@ -8,10 +8,10 @@ export const PublicFooter = () => {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#667085]">
           {/* Brand + Copyright */}
           <div className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="PatilOne" className="w-5 h-5 rounded-md" />
-            <span className="font-bold text-[#172033] tracking-tight">PatilOne</span>
+            <img src="/favicon.svg" alt="Shende Industries" className="w-5 h-5 rounded-md" />
+            <span className="font-bold text-[#172033] tracking-tight">Shende Industries Pvt. Ltd.</span>
             <span>·</span>
-            <span>© {new Date().getFullYear()} PatilOne. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} SIPL. All rights reserved.</span>
           </div>
 
           {/* Minimal Links */}

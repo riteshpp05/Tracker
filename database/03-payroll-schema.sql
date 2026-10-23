@@ -1,5 +1,5 @@
 -- =====================================================================
--- PATILONE ENTERPRISE PORTAL — NATIVE INDIAN PAYROLL SCHEMA V1
+-- SHENDE INDUSTRIES ENTERPRISE PORTAL — NATIVE INDIAN PAYROLL SCHEMA V1
 -- =====================================================================
 
 -- 1. Extend Employees Table with Banking & Statutory Information

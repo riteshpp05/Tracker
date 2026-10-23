@@ -109,7 +109,7 @@ const getHHMMError = (value, maxMinutes = 1440) => {
 const MAX_ENTRY_MINUTES = 24 * 60;
 const MAX_DAILY_MINUTES = 24 * 60;
 const MIN_DAILY_MINUTES = 8 * 60;
-const SELECTED_DATE_KEY = "patilone_timesheet_selected_date";
+const SELECTED_DATE_KEY = "shende_timesheet_selected_date";
 
 const STATUS_MAP = {
   1: "Draft",

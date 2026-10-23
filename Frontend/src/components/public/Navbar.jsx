@@ -21,11 +21,11 @@ export const PublicNavbar = () => {
           <Link to="/" className="flex items-center gap-2.5">
             <img
               src="/favicon.svg"
-              alt="PatilOne"
+              alt="Shende Industries"
               className="w-7 h-7 rounded-md"
             />
             <span className="font-bold text-[15px] text-[#172033] tracking-tight">
-              PatilOne
+              Shende Industries
             </span>
           </Link>
 

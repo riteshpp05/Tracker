@@ -47,14 +47,14 @@ export const ContactPage = () => {
       <section className="bg-white border-b border-[#E5E7EB] py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-6 space-y-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#6558D9]">
-            Contact PatilOne
+            Contact Shende Industries
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#172033] tracking-tight">
-            Connect With Our Team
+            Connect With Our Baner HQ
           </h1>
           <p className="text-[#667085] text-lg max-w-2xl leading-relaxed">
-            Whether you have questions about deploying PatilOne across your enterprise or
-            need support with your employee workspace, we are here to help.
+            Whether you have questions regarding our industrial packaging systems, machine automation,
+            or employee portal access, our team is at your service.
           </p>
         </div>
       </section>
@@ -70,22 +70,22 @@ export const ContactPage = () => {
                 <div className="flex items-start gap-3">
                   <Mail className="w-4 h-4 text-[#6558D9] shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-[#172033] block">Platform Inquiries</span>
-                    <span>support@patilone.com</span>
+                    <span className="font-semibold text-[#172033] block">Official Email</span>
+                    <span>info@shendeindustries.com</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Phone className="w-4 h-4 text-[#6558D9] shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-[#172033] block">Enterprise Helpdesk</span>
-                    <span>+1 (555) 019-2834</span>
+                    <span className="font-semibold text-[#172033] block">Phone / Support</span>
+                    <span>+91 9022541929 / +91 8605313355</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="w-4 h-4 text-[#6558D9] shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold text-[#172033] block">Corporate Headquarters</span>
-                    <span>Chicago Operations Center, Suite 400, Chicago, IL</span>
+                    <span>Off. No. 6, 2nd Flr, Aditi Commerce, Baner Rd, Pune 411045</span>
                   </div>
                 </div>
               </div>
@@ -108,7 +108,7 @@ export const ContactPage = () => {
                   <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
                   <h3 className="text-lg font-bold text-[#172033]">Inquiry Submitted</h3>
                   <p className="text-xs text-[#667085] max-w-sm mx-auto">
-                    Thank you for contacting PatilOne. A member of our enterprise operations team
+                    Thank you for contacting Shende Industries. A member of our operations team
                     will follow up with you within one business day.
                   </p>
                 </div>
