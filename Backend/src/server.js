@@ -133,14 +133,14 @@ if (process.env.NODE_ENV === "production") {
 // Global error handler
 app.use(errorHandler);
 
-// Background cron initializations (only in standalone persistent servers, not in Vercel serverless)
-if (!process.env.VERCEL) {
+// Background cron initializations (only in standalone persistent servers, not in Vercel serverless or test)
+if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
   initEmailCrons();
   initDbBackupCron();
 }
 
-// Start server (only if run directly or not running in Vercel serverless environment)
-if (!process.env.VERCEL) {
+// Start server (only if run directly or not running in Vercel serverless or test environment)
+if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Shende Industries Server running on port ${PORT} in ${process.env.NODE_ENV || "development"} mode`);
   });

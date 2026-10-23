@@ -129,6 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_employees_manager ON employees(module_manager_id)
 CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 CREATE INDEX IF NOT EXISTS idx_employees_code ON employees(employee_code);
 
+DROP TRIGGER IF EXISTS trigger_update_employees_timestamp ON employees;
 CREATE TRIGGER trigger_update_employees_timestamp
 BEFORE UPDATE ON employees
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -182,6 +183,7 @@ CREATE TABLE IF NOT EXISTS project_master (
 CREATE INDEX IF NOT EXISTS idx_project_master_client ON project_master(client_id);
 CREATE INDEX IF NOT EXISTS idx_project_master_status ON project_master(status);
 
+DROP TRIGGER IF EXISTS trigger_update_project_master_timestamp ON project_master;
 CREATE TRIGGER trigger_update_project_master_timestamp
 BEFORE UPDATE ON project_master
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -320,6 +322,7 @@ CREATE INDEX IF NOT EXISTS idx_dte_week ON daily_timesheet_entries(employee_id, 
 CREATE INDEX IF NOT EXISTS idx_dte_status ON daily_timesheet_entries(status);
 CREATE INDEX IF NOT EXISTS idx_dte_manager ON daily_timesheet_entries(manager_id, status);
 
+DROP TRIGGER IF EXISTS trigger_update_dte_timestamp ON daily_timesheet_entries;
 CREATE TRIGGER trigger_update_dte_timestamp
 BEFORE UPDATE ON daily_timesheet_entries
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

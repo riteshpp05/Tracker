@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "node tests/payrollEngine.test.js && node tests/coreModulesApi.test.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

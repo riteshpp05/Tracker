@@ -15,17 +15,39 @@
  *   5. 05-system-settings.sql
  */
 
-import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import pkg from "pg";
-const { Client } = pkg;
+import { createRequire } from "module";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const dbDir = path.join(rootDir, "database");
+
+// Require resolver for Backend/node_modules fallback
+const require = createRequire(import.meta.url);
+let dotenv, pkgPg;
+try {
+  dotenv = require("dotenv");
+} catch {
+  dotenv = require(path.join(rootDir, "Backend", "node_modules", "dotenv"));
+}
+try {
+  pkgPg = require("pg");
+} catch {
+  pkgPg = require(path.join(rootDir, "Backend", "node_modules", "pg"));
+}
+
+const { Client } = pkgPg;
+
+// Load .env from root or Backend/.env
+if (fs.existsSync(path.join(rootDir, ".env"))) {
+  dotenv.config({ path: path.join(rootDir, ".env") });
+}
+if (fs.existsSync(path.join(rootDir, "Backend", ".env"))) {
+  dotenv.config({ path: path.join(rootDir, "Backend", ".env") });
+}
 
 const connectionString =
   process.argv[2] ||

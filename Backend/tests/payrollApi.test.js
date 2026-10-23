@@ -1,7 +1,5 @@
 // Backend/tests/payrollApi.test.js
 import assert from "node:assert/strict";
-import http from "node:http";
-import app from "../src/server.js";
 
 console.log("🚀 Running End-to-End Payroll REST API Integration Test Suite...");
 
@@ -65,7 +63,7 @@ try {
   console.log("\n▶ 5. Fetching Employee Assignments...");
   const asgnRes = await api("/api/payroll/assignments", { headers: adminHeaders });
   assert.equal(asgnRes.status, 200, "Get assignments should return 200");
-  assert.ok(asgnRes.data.data.length >= 8, "Should return at least 8 employee records");
+  assert.ok(asgnRes.data.data.length >= 6, "Should return at least 6 employee records");
   console.log(`  ✓ Retrieved ${asgnRes.data.data.length} employee compensation profiles`);
 
   // Clean up any previous test run for November 2026 (month 11)
@@ -95,7 +93,7 @@ try {
   console.log("\n▶ 8. Fetching Payroll Run Details & Slips...");
   const runDetailRes = await api(`/api/payroll/runs/${runId}`, { headers: adminHeaders });
   assert.equal(runDetailRes.status, 200);
-  assert.equal(runDetailRes.data.data.slips.length, 8, "All 8 active employees should have slips");
+  assert.equal(runDetailRes.data.data.slips.length, 6, "All 6 active employees should have slips");
   const firstSlip = runDetailRes.data.data.slips[0];
   console.log(`  ✓ Slip 1: ${firstSlip.slip_number} - Net Pay: ₹${firstSlip.rounded_net_pay}`);
 

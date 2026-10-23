@@ -7,6 +7,7 @@
   "scripts": {
     "build": "cd Frontend && npm install && npm run build",
     "db:init": "node scripts/init-cloud-db.js",
+    "test": "node Backend/tests/payrollEngine.test.js && node Backend/tests/coreModulesApi.test.js",
     "start": "node Backend/src/server.js",
     "dev:backend": "cd Backend && npm run dev",
     "dev:frontend": "cd Frontend && npm run dev"
