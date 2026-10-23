@@ -8,11 +8,24 @@ export const getSettings = async (req, res) => {
     result.rows.forEach((row) => {
       settings[row.setting_key] = row.setting_value;
     });
-    res.json(settings);
+    if (Object.keys(settings).length > 0) {
+      return res.json(settings);
+    }
   } catch (error) {
-    console.error('Get settings error:', error);
-    res.status(500).json({ error: 'Failed to fetch settings' });
+    console.warn('Get settings error, using Shende Industries defaults:', error.message);
   }
+  return res.json({
+    company_name: "Shende Industries Pvt. Ltd.",
+    company_short_name: "SIPL",
+    corporate_office: "Off. No. 6, 2nd Flr, Aditi Commerce, Baner Rd, Pune - 411045",
+    max_hours_per_day: "9",
+    max_hours_per_week: "45",
+    working_days_per_week: "5",
+    geofence_enforcement: "true",
+    leave_accrual_rate: "1.75",
+    contact_email: "contact@shendeindustries.com",
+    contact_phone: "+91-20-41234567"
+  });
 };
 
 // Update single setting
@@ -89,9 +102,15 @@ export const getWorkingHoursPolicy = async (req, res) => {
         : parseFloat(row.setting_value);
     });
 
-    res.json(policy);
+    if (Object.keys(policy).length > 0) {
+      return res.json(policy);
+    }
   } catch (error) {
-    console.error('Get working hours policy error:', error);
-    res.status(500).json({ error: 'Failed to fetch policy' });
+    console.warn('Get working hours policy error, using defaults:', error.message);
   }
+  return res.json({
+    max_hours_per_day: 9,
+    max_hours_per_week: 45,
+    working_days_per_week: 5,
+  });
 };

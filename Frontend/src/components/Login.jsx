@@ -141,6 +141,7 @@ export function Login() {
     } catch (err) {
       const errData = err?.response?.data;
       const rawMsg =
+        (typeof errData?.detail === "string" ? `${errData.error || "Login failed"}: ${errData.detail}` : null) ||
         (typeof errData?.error === "string" ? errData.error : null) ||
         (typeof errData?.message === "string" ? errData.message : null) ||
         (typeof err?.message === "string" ? err.message : null) ||

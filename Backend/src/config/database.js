@@ -8,13 +8,21 @@ types.setTypeParser(1082, (stringValue) => {
   return stringValue;
 });
 
-// Clean and sanitize connection string (trim whitespace, accidental quotes, or channel_binding)
-let rawConnectionString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || "")
+// Clean and sanitize connection string (trim whitespace, accidental quotes, or channel_binding/sslmode params)
+let rawConnectionString = (
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  ""
+)
   .trim()
   .replace(/^["']|["']$/g, "");
 
+// Strip sslmode and channel_binding so pg-connection-string does not wipe out rejectUnauthorized: false
 const connectionString = rawConnectionString
-  ? rawConnectionString.replace(/channel_binding=[^&]+&?/g, "").replace(/[?&]$/, "")
+  ? rawConnectionString
+      .replace(/[?&](sslmode|channel_binding)=[^&]+/g, "")
+      .replace(/[?&]$/, "")
   : null;
 
 const isLocalhost = (str) =>
@@ -24,9 +32,10 @@ const poolConfig = connectionString
   ? {
       connectionString,
       ssl: isLocalhost(connectionString) ? false : { rejectUnauthorized: false },
-      max: process.env.VERCEL ? 5 : 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      max: process.env.VERCEL ? 3 : 15,
+      idleTimeoutMillis: 15000,
+      connectionTimeoutMillis: 3500, // Quick failover so serverless lambdas don't hang
+      statement_timeout: 4000,
     }
   : {
       user: process.env.DB_USER,
@@ -38,9 +47,10 @@ const poolConfig = connectionString
         process.env.DB_SSL === "true"
           ? { rejectUnauthorized: false }
           : false,
-      max: process.env.VERCEL ? 5 : 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      max: process.env.VERCEL ? 3 : 15,
+      idleTimeoutMillis: 15000,
+      connectionTimeoutMillis: 3500,
+      statement_timeout: 4000,
     };
 
 const pool = new Pool(poolConfig);
