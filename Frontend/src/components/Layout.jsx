@@ -38,6 +38,7 @@ import {
   Megaphone,
   BookOpen,
   MapPin,
+  CheckCircle2,
 } from "lucide-react";
 
 const BRAND_NAV = "#111827"; // SIPL Brand navy
@@ -112,7 +113,8 @@ export const Layout = ({ children }) => {
           { name: "Tickets", href: "/admin/tickets", icon: TicketIcon },
           { name: "Tasks", href: "/admin/tasks", icon: ListTodo },
           { name: "Assignments", href: "/admin/assignments", icon: ListChecks },
-          { name: "Timesheet Approvals", href: "/admin/timesheet-approval", icon: Clock },
+          { name: "Log Timesheet", href: "/employee/timesheet", icon: Clock },
+          { name: "Timesheet Approvals", href: "/admin/timesheet-approval", icon: CheckCircle2 },
         ],
       },
       {
@@ -164,6 +166,7 @@ export const Layout = ({ children }) => {
         section: "Attendance & Leaves",
         items: [
           { name: "Attendance Master", href: "/admin/attendance", icon: MapPin },
+          { name: "Log Timesheet", href: "/employee/timesheet", icon: Clock },
           { name: "Leaves", href: "/hr/leaves", icon: CalendarDays },
           { name: "Travel & Expenses", href: "/hr/expenses", icon: Receipt },
         ],

@@ -234,7 +234,15 @@ export function AppRoutes() {
         <Route
           path="/employee/timesheet"
           element={
-            <ProtectedRoute roles={["EMPLOYEE"]}>
+            <ProtectedRoute roles={["EMPLOYEE", "ADMIN", "MANAGER", "HR"]}>
+              <EmployeeTimesheetEntry />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/timesheet"
+          element={
+            <ProtectedRoute roles={["EMPLOYEE", "ADMIN", "MANAGER", "HR"]}>
               <EmployeeTimesheetEntry />
             </ProtectedRoute>
           }

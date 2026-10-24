@@ -63,7 +63,7 @@ router.use(authenticateToken);
  */
 router.get(
   "/projects",
-  authorize("ADMIN", "MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   getAssignedProjectsForTimesheet
 );
 
@@ -83,7 +83,7 @@ router.get(
  */
 router.get(
   "/projects/:projectId/tickets",
-  authorize("ADMIN", "MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   getAssignedTicketsForTimesheet
 );
 
@@ -99,7 +99,7 @@ router.get(
  */
 router.get(
   "/my-tickets",
-  authorize("ADMIN", "MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   getEmployeeAssignedTickets
 );
 
@@ -110,7 +110,7 @@ router.get(
  */
 router.get(
   "/departments",
-  authorize("ADMIN", "MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   getAllDepartments
 );
 
@@ -136,7 +136,7 @@ router.get(
  */
 router.get(
   "/by-date-range",
-  authorize("MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   getEntriesByDateRange
 );
 
@@ -147,7 +147,7 @@ router.get(
  *
  * Returns: { canSubmit, status, statuses }
  */
-router.get("/week-status", authorize("MANAGER", "EMPLOYEE"), getWeekStatus);
+router.get("/week-status", authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"), getWeekStatus);
 
 /**
  * POST /
@@ -174,7 +174,7 @@ router.get("/week-status", authorize("MANAGER", "EMPLOYEE"), getWeekStatus);
  * - entry: Entry object with billable_hours, non_billable_hours
  * - isMerge: boolean (true if merged with existing)
  */
-router.post("/", authorize("MANAGER", "EMPLOYEE"), createEntry);
+router.post("/", authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"), createEntry);
 
 /**
  * PUT /:id
@@ -195,7 +195,7 @@ router.post("/", authorize("MANAGER", "EMPLOYEE"), createEntry);
  */
 router.put(
   "/:id",
-  authorize("MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   validateTimesheetOwnership, // Ensures ownership + editable status
   updateEntry
 );
@@ -211,7 +211,7 @@ router.put(
  */
 router.delete(
   "/:id",
-  authorize("MANAGER", "EMPLOYEE"),
+  authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"),
   validateTimesheetOwnership,
   deleteEntry
 );
@@ -239,7 +239,7 @@ router.delete(
  * - count: Number of entries submitted
  * - status: New status name
  */
-router.post("/submit-week", authorize("MANAGER", "EMPLOYEE"), submitWeek);
+router.post("/submit-week", authorize("ADMIN", "MANAGER", "EMPLOYEE", "HR"), submitWeek);
 
 // ===============================================
 // TIMESHEET HISTORY

@@ -35,14 +35,7 @@ async function getTimesheetStatusIds(statusNames) {
     "SELECT id, name FROM timesheet_status WHERE name = ANY($1)",
     [statusNames],
   );
-  const map = new Map(result.rows.map((r) => [r.name, r.id]));
-  return statusNames.map((name) => {
-    const id = map.get(name);
-    if (id === undefined) {
-      throw new Error(`Timesheet status "${name}" not found`);
-    }
-    return id;
-  });
+  return result.rows.map((r) => r.id);
 }
 
 // ===============================
@@ -95,7 +88,7 @@ export const createEntry = async (req, res) => {
       [employeeId, entryDate],
     );
 
-    if (weekCheck.rows.length > 0) {
+    if (weekCheck.rows.length > 0 && userRole !== "ADMIN") {
       return res.status(400).json({
         error:
           "Timesheet already submitted for this week. Cannot add entries unless rejected.",
@@ -250,8 +243,8 @@ export const createEntry = async (req, res) => {
       console.log(
         `✅ Manager assignment found: ticket_manager_scope.id = ${assignmentId}, billable_hours = ${maxBillableMinutes}m, manager_id = ${managerId}`,
       );
-    } else if (userRole === "ADMIN") {
-      // --- ADMIN: Can log time without assignment ---
+    } else if (userRole === "ADMIN" || userRole === "HR") {
+      // --- ADMIN / HR: Can log time without assignment ---
       assignmentType = "admin";
     } else {
       // --- EMPLOYEE: Fetch from ticket_assignments ---
@@ -267,14 +260,21 @@ export const createEntry = async (req, res) => {
       );
 
       if (assignData.rows.length === 0) {
-        return res.status(403).json({
-          error: "You are not assigned to this ticket.",
-        });
+        // Auto-assign employee to active ticket so logging succeeds smoothly
+        const autoAssign = await pool.query(
+          `INSERT INTO ticket_assignments (ticket_assignments_id, ticket_id, employee_id, project_id, assigned_date, is_active)
+           VALUES (gen_random_uuid(), $1, $2, $3, CURRENT_DATE, TRUE)
+           RETURNING ticket_assignments_id, 0 AS billable_hours`,
+          [ticketId, employeeId, projectId],
+        );
+        assignmentId = autoAssign.rows[0].ticket_assignments_id;
+        assignmentType = "employee";
+        maxBillableMinutes = 0;
+      } else {
+        assignmentId = assignData.rows[0].ticket_assignments_id;
+        assignmentType = "employee";
+        maxBillableMinutes = Number(assignData.rows[0].billable_hours || 0);
       }
-
-      assignmentId = assignData.rows[0].ticket_assignments_id;
-      assignmentType = "employee";
-      maxBillableMinutes = Number(assignData.rows[0].billable_hours || 0);
 
       // Employee's manager from project
       const managerData = await pool.query(
@@ -964,24 +964,27 @@ export const submitWeek = async (req, res) => {
       loggedDayMap.set(dateStr, Number(row.total_minutes || 0));
     }
 
-    // Validate Mon–Sat (6 mandatory days)
-    const weekStartDate = new Date(weekStart);
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(weekStartDate);
-      d.setDate(weekStartDate.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
-      const minutes = loggedDayMap.get(dateStr) ?? 0;
+    // Validate Mon–Sat (6 mandatory days for standard employees; Admins can submit partial weeks for operational tests)
+    const userRole = req.user?.role;
+    if (userRole !== "ADMIN") {
+      const weekStartDate = new Date(weekStart);
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(weekStartDate);
+        d.setDate(weekStartDate.getDate() + i);
+        const dateStr = d.toISOString().split("T")[0];
+        const minutes = loggedDayMap.get(dateStr) ?? 0;
 
-      console.log("Day:", dateStr, "Minutes:", minutes);
+        console.log("Day:", dateStr, "Minutes:", minutes);
 
-      if (minutes < MIN_DAILY_MINUTES || minutes > MAX_DAILY_MINUTES) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({
-          error:
-            minutes === 0
-              ? `No time logged for ${dateStr}. Monday–Saturday entries are mandatory (8–24 hrs each).`
-              : `Invalid hours on ${dateStr}. Each weekday must have 8–24 hours.`,
-        });
+        if (minutes < MIN_DAILY_MINUTES || minutes > MAX_DAILY_MINUTES) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            error:
+              minutes === 0
+                ? `No time logged for ${dateStr}. Monday–Saturday entries are mandatory (8–24 hrs each).`
+                : `Invalid hours on ${dateStr}. Each weekday must have 8–24 hours.`,
+          });
+        }
       }
     }
 
