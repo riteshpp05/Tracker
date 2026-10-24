@@ -209,8 +209,9 @@ class PayrollCalculationEngine {
     const grossPay = earningsItems.reduce((sum, item) => sum + item.amount, 0);
 
     // 2. Calculate Deductions (Statutory & Voluntary)
-    // EPF Employee Contribution
-    const epfBreakdown = statutoryRulesService.calculateEPF(proratedBasic, false);
+    // EPF Employee Contribution (supporting ₹15k, ₹25k, or Actual ceiling)
+    const pfCeilingMode = assignment?.pf_ceiling_mode || employee?.pf_ceiling_mode || (employee?.opted_full_wage ? 'ACTUAL' : '15000');
+    const epfBreakdown = statutoryRulesService.calculateEPF(proratedBasic, pfCeilingMode);
     if (structureItems.some((i) => i.code === "PF_EMPLOYEE") || true) {
       deductionItems.push({
         componentCode: "PF_EMPLOYEE",

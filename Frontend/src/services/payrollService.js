@@ -100,6 +100,12 @@ export const payrollService = {
     return res.data;
   },
 
+  // 6. CTC Breakup Calculator — Zero-mismatch reverse engine
+  async calculateCtcBreakup(params) {
+    const res = await api.post("/payroll/calculate-ctc-breakup", params);
+    return res.data;
+  },
+
   // 5. Employee Self-Service
   async getMySalarySlips() {
     const res = await api.get("/payroll/my-slips");

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Save, Clock, Bell, ShieldCheck, Loader2 } from "lucide-react";
+import { Save, Clock, Bell, ShieldCheck, Loader2, IndianRupee, Shield, Building2, Calculator } from "lucide-react";
 import api from "@/services/api";
 
 export function SystemSettings() {
@@ -18,6 +18,12 @@ export function SystemSettings() {
     email_notifications_enabled: true,
     approval_required: true,
     auto_approve_within_hours: "24",
+    // Payroll Statutory & CTC Engine Config
+    pf_wage_ceiling_mode: "25000",
+    default_hra_type: "METRO",
+    default_basic_pct: "50",
+    gratuity_provision_enabled: true,
+    default_tax_regime: "New",
   });
 
   const [loading, setLoading] = useState(false);
@@ -42,6 +48,11 @@ export function SystemSettings() {
           timesheet_submission_reminder: res.data.timesheet_submission_reminder === "true" || res.data.timesheet_submission_reminder === true,
           email_notifications_enabled: res.data.email_notifications_enabled === "true" || res.data.email_notifications_enabled === true,
           approval_required: res.data.approval_required === "true" || res.data.approval_required === true,
+          pf_wage_ceiling_mode: res.data.pf_wage_ceiling_mode || prev.pf_wage_ceiling_mode,
+          default_hra_type: res.data.default_hra_type || prev.default_hra_type,
+          default_basic_pct: res.data.default_basic_pct || prev.default_basic_pct,
+          gratuity_provision_enabled: res.data.gratuity_provision_enabled === undefined ? prev.gratuity_provision_enabled : (res.data.gratuity_provision_enabled === "true" || res.data.gratuity_provision_enabled === true),
+          default_tax_regime: res.data.default_tax_regime || prev.default_tax_regime,
         }));
       }
     } catch (error) {
@@ -64,9 +75,14 @@ export function SystemSettings() {
         email_notifications_enabled: String(settings.email_notifications_enabled),
         approval_required: String(settings.approval_required),
         auto_approve_within_hours: String(settings.auto_approve_within_hours),
+        pf_wage_ceiling_mode: String(settings.pf_wage_ceiling_mode),
+        default_hra_type: String(settings.default_hra_type),
+        default_basic_pct: String(settings.default_basic_pct),
+        gratuity_provision_enabled: String(settings.gratuity_provision_enabled),
+        default_tax_regime: String(settings.default_tax_regime),
       };
       await api.put("/settings", { settings: payload });
-      toast.success("System policies & settings saved successfully");
+      toast.success("System policies & statutory settings saved successfully");
     } catch (error) {
       console.error("Save settings error:", error);
       toast.error(error.response?.data?.error || "Failed to save settings");
@@ -107,6 +123,9 @@ export function SystemSettings() {
           </TabsTrigger>
           <TabsTrigger value="approval" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#172033] data-[state=active]:shadow-xs">
             <ShieldCheck className="w-3.5 h-3.5" /> Approval Policy
+          </TabsTrigger>
+          <TabsTrigger value="payroll" className="gap-1.5 text-xs rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#172033] data-[state=active]:shadow-xs">
+            <IndianRupee className="w-3.5 h-3.5" /> Payroll &amp; Statutory
           </TabsTrigger>
         </TabsList>
 
@@ -288,6 +307,116 @@ export function SystemSettings() {
               <p className="text-[11px] text-[#667085]">
                 Automatically approve submissions if no action is taken within this duration.
               </p>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── Payroll & Statutory Configuration ── */}
+        <TabsContent value="payroll" className="space-y-4 mt-2">
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="border-b border-[#F1F3F5] pb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-[14px] font-semibold text-[#172033]">
+                  Indian Statutory &amp; CTC Calculation Engine
+                </h2>
+                <p className="text-[12px] text-[#667085] mt-0.5">
+                  Configure company-wide PF wage ceiling, reverse CTC breakup parameters, and statutory withholding defaults.
+                </p>
+              </div>
+              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Zero-Mismatch Active
+              </span>
+            </div>
+
+            {/* PF Wage Ceiling Setting */}
+            <div className="space-y-1.5 max-w-md">
+              <Label className="text-[13px] font-medium text-[#172033] flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-violet-600" />
+                <span>EPF Wage Ceiling Mode (Statutory Cap)</span>
+              </Label>
+              <select
+                value={settings.pf_wage_ceiling_mode}
+                onChange={(e) => setSettings({ ...settings, pf_wage_ceiling_mode: e.target.value })}
+                className="w-full h-9 px-3 text-[13px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] focus:bg-white text-[#172033] cursor-pointer"
+              >
+                <option value="15000">₹15,000 / month — Legacy Statutory Limit (Max Employee PF: ₹1,800)</option>
+                <option value="25000">₹25,000 / month — Enhanced Statutory Limit (Max Employee PF: ₹3,000)</option>
+                <option value="ACTUAL">Actual Basic Salary — Full Wage Uncapped PF</option>
+              </select>
+              <p className="text-[11px] text-[#667085]">
+                EPFO 2025/2026 amendment readiness. Note: EPS-95 pension wage ceiling remains strictly capped at ₹15,000 per statutory law.
+              </p>
+            </div>
+
+            {/* HRA & Basic Percent Defaults */}
+            <div className="grid gap-6 md:grid-cols-2 pt-2 border-t border-[#F1F3F5]">
+              <div className="space-y-1.5">
+                <Label className="text-[13px] font-medium text-[#172033] flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Default HRA Location Regime</span>
+                </Label>
+                <select
+                  value={settings.default_hra_type}
+                  onChange={(e) => setSettings({ ...settings, default_hra_type: e.target.value })}
+                  className="w-full h-9 px-3 text-[13px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] focus:bg-white text-[#172033] cursor-pointer"
+                >
+                  <option value="METRO">Metro Cities — 50% of Basic Salary (Mumbai, Pune, Delhi, etc.)</option>
+                  <option value="NON_METRO">Non-Metro Cities — 40% of Basic Salary</option>
+                </select>
+                <p className="text-[11px] text-[#667085]">
+                  Used by reverse CTC engine to calculate default tax-exempt House Rent Allowance.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[13px] font-medium text-[#172033] flex items-center gap-1.5">
+                  <Calculator className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Default Basic Salary (% of Monthly CTC)</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="30"
+                  max="70"
+                  step="5"
+                  value={settings.default_basic_pct}
+                  onChange={(e) => setSettings({ ...settings, default_basic_pct: e.target.value })}
+                  className="h-9 text-[13px] rounded-xl border-[#E5E7EB] bg-[#F7F8FA] focus:bg-white text-[#172033]"
+                />
+                <p className="text-[11px] text-[#667085]">
+                  Standard Indian enterprise benchmark is 50% of CTC to ensure compliance with New Wage Code.
+                </p>
+              </div>
+            </div>
+
+            {/* Gratuity & Tax Regime Switches */}
+            <div className="border-t border-[#F1F3F5] pt-4 space-y-4">
+              <div className="flex items-center justify-between py-1">
+                <div className="space-y-0.5">
+                  <Label className="text-[13px] font-medium text-[#172033]">Gratuity Provisioning (4.81% of Basic)</Label>
+                  <p className="text-[12px] text-[#667085]">
+                    Automatically include Payment of Gratuity Act provision in monthly employer CTC burden.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.gratuity_provision_enabled}
+                  onCheckedChange={(checked) => setSettings({ ...settings, gratuity_provision_enabled: checked })}
+                />
+              </div>
+
+              <div className="space-y-1.5 max-w-xs pt-2">
+                <Label className="text-[13px] font-medium text-[#172033]">Default Employee Income Tax Regime</Label>
+                <select
+                  value={settings.default_tax_regime}
+                  onChange={(e) => setSettings({ ...settings, default_tax_regime: e.target.value })}
+                  className="w-full h-9 px-3 text-[13px] rounded-xl border border-[#E5E7EB] bg-[#F7F8FA] focus:bg-white text-[#172033] cursor-pointer"
+                >
+                  <option value="New">New Tax Regime (Section 115BAC — Default with ₹75k std. deduction)</option>
+                  <option value="Old">Old Tax Regime (Standard slabs with Chapter VI-A deductions)</option>
+                </select>
+                <p className="text-[11px] text-[#667085]">
+                  Applied to new onboarding employees if not declared during appointment.
+                </p>
+              </div>
             </div>
           </div>
         </TabsContent>

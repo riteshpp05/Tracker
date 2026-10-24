@@ -48,4 +48,7 @@ router.post("/runs/:id/record-payment", authorizeRoles(["ADMIN", "HR"]), payroll
 router.get("/runs/:id/bank-export", authorizeRoles(["ADMIN", "HR"]), payrollController.exportBankPaymentFile);
 router.get("/reports/statutory", authorizeRoles(["ADMIN", "HR"]), payrollController.getStatutoryReports);
 
+// 6. CTC Breakup Calculator — Zero-mismatch reverse engine (no DB required)
+router.post("/calculate-ctc-breakup", authorizeRoles(["ADMIN", "HR"]), payrollController.calculateCtcBreakup.bind(payrollController));
+
 export default router;

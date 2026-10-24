@@ -240,6 +240,10 @@ export const PayslipModal = ({ isOpen, onClose, slipData }) => {
                   </div>
                 ))}
               </div>
+              <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10px] text-slate-500 font-mono">
+                <span>PF Wage Ceiling: ₹25,000 / ₹15,000 Configurable | EPS-95 Statutory Wage Ceiling: ₹15,000</span>
+                <span className="font-semibold text-slate-700">Total Employer CTC Burden: ₹{(Number(slip.gross_pay) + employerContributions.reduce((s, i) => s + Number(i.amount || 0), 0)).toLocaleString("en-IN")}</span>
+              </div>
             </div>
           )}
 

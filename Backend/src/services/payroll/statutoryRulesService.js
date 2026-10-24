@@ -32,42 +32,58 @@ class StatutoryRulesService {
   }
 
   /**
-   * EPF Calculation
-   * Default rules: 12% of Basic salary.
-   * Statutory wage ceiling: ₹15,000 / month.
-   * If wage > ₹15,000 and not opted for actual wage, cap at ₹15,000 (Max employee PF = ₹1,800).
-   * Employer contribution:
-   *   - EPS (8.33%, capped at ₹1,250 on ₹15k)
-   *   - EPF (remainder 3.67%)
-   *   - EDLI (0.50%, capped at ₹75)
-   *   - EPF Admin (0.50%, capped at ₹75)
+   * EPF Calculation — Configurable PF Wage Ceiling
+   *
+   * pfCeilingMode options:
+   *   '15000'  — Legacy statutory ceiling (₹15,000). Employee PF capped at ₹1,800/mo.
+   *   '25000'  — Enhanced ceiling (₹25,000). Employee PF capped at ₹3,000/mo.
+   *   'ACTUAL' — Full basic wage used; no ceiling applied (voluntarily opted higher PF).
+   *
+   * Employer contribution split:
+   *   - EPS  : 8.33%, always capped at ₹15,000 wage (EPS statutory max unchanged)
+   *   - EPF  : remainder of employer 12% after EPS
+   *   - EDLI : 0.50% on EPS wage
+   *   - Admin: 0.50% on PF wage
    */
-  calculateEPF(basicPay, optedFullWage = false) {
+  calculateEPF(basicPay, pfCeilingMode = '15000') {
     const basic = Math.max(0, Number(basicPay) || 0);
-    const wageCeiling = 15000;
-    const pfWage = optedFullWage ? basic : Math.min(basic, wageCeiling);
 
-    // Employee Share: 12%
+    // Determine PF wage based on ceiling mode
+    let wageCeiling;
+    if (pfCeilingMode === true || pfCeilingMode === 'ACTUAL' || pfCeilingMode === 'FULL') {
+      wageCeiling = basic; // no ceiling
+    } else if (pfCeilingMode === '25000' || pfCeilingMode === 25000) {
+      wageCeiling = 25000;
+    } else {
+      wageCeiling = 15000; // default legacy
+    }
+
+    const pfWage = Math.min(basic, wageCeiling);
+
+    // Employee Share: 12% of PF wage
     const employeePF = Math.round(pfWage * 0.12);
 
     // Employer Share: 12% Total (8.33% EPS + 3.67% EPF)
+    // EPS wage is ALWAYS capped at ₹15,000 per EPFO statute (EPS-95 unchanged)
     const epsWage = Math.min(basic, 15000);
     const employerEPS = Math.round(epsWage * 0.0833);
     const employerEPF = Math.round(pfWage * 0.12) - employerEPS;
     const employerEDLI = Math.round(epsWage * 0.005);
     const employerAdmin = Math.round(pfWage * 0.005);
 
-    const totalEmployerPF = employerEPS + employerEPF + employerEDLI + employerAdmin;
+    const totalEmployerPF = employerEPS + Math.max(0, employerEPF) + employerEDLI + employerAdmin;
 
     return {
       pfWage,
+      wageCeiling,
+      pfCeilingMode,
       employeePF,
       employerEPS,
-      employerEPF,
+      employerEPF: Math.max(0, employerEPF),
       employerEDLI,
       employerAdmin,
       totalEmployerPF,
-      isCapped: !optedFullWage && basic > wageCeiling,
+      isCapped: pfCeilingMode !== 'ACTUAL' && basic > wageCeiling,
     };
   }
 

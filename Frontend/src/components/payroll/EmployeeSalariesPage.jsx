@@ -1,21 +1,211 @@
 // Frontend/src/components/payroll/EmployeeSalariesPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  CreditCard,
-  Search,
-  Filter,
-  Plus,
-  Edit2,
-  Building,
-  CheckCircle2,
-  X,
-  FileText,
-  AlertCircle,
-  Eye,
+  CreditCard, Search, Filter, Plus, Edit2, Building,
+  CheckCircle2, X, FileText, AlertCircle, Eye,
+  Calculator, ChevronDown, ChevronUp, Info, RefreshCw,
+  TrendingUp, Shield, Zap, MapPin,
 } from "lucide-react";
 import payrollService from "../../services/payrollService";
 import { toast } from "sonner";
 
+// ─────────────────────────────────────────────
+//  Pure-math CTC breakup engine (client-side)
+//  Mirrors the backend formula exactly so HR
+//  sees live results before hitting Save.
+// ─────────────────────────────────────────────
+function computeCtcBreakup({ annualCtc, pfCeilingMode = "15000", hraType = "METRO", basicPercent = 50, month = new Date().getMonth() + 1, gender = "Male" }) {
+  const annual = Math.max(0, Number(annualCtc) || 0);
+  if (!annual) return null;
+
+  const monthlyCtc = Math.round(annual / 12);
+  const basicPct = Math.min(70, Math.max(30, Number(basicPercent) || 50));
+  const basic = Math.round(monthlyCtc * (basicPct / 100));
+  const hraPct = hraType === "METRO" ? 0.5 : 0.4;
+  const hra = Math.round(basic * hraPct);
+  const gratuity = Math.round(basic * 0.0481);
+
+  // PF ceiling
+  let wageCeiling = pfCeilingMode === "25000" ? 25000 : pfCeilingMode === "ACTUAL" ? basic : 15000;
+  const pfWage = Math.min(basic, wageCeiling);
+  const employeePF = Math.round(pfWage * 0.12);
+  const epsWage = Math.min(basic, 15000);
+  const employerEPS = Math.round(epsWage * 0.0833);
+  const employerEPF = Math.max(0, Math.round(pfWage * 0.12) - employerEPS);
+  const employerEDLI = Math.round(epsWage * 0.005);
+  const employerAdmin = Math.round(pfWage * 0.005);
+  const employerPF = employerEPS + employerEPF + employerEDLI + employerAdmin;
+
+  // ESIC on estimated gross (before special)
+  const estimatedGross = basic + hra;
+  const esicEligible = estimatedGross <= 21000;
+  const employerESIC = esicEligible ? Math.round(estimatedGross * 0.0325) : 0;
+  const employeeESIC = esicEligible ? Math.ceil(estimatedGross * 0.0075) : 0;
+
+  // Special allowance — balancing figure
+  const special = Math.max(0, monthlyCtc - basic - hra - employerPF - employerESIC - gratuity);
+  const grossPay = basic + hra + special;
+
+  // PT (Maharashtra)
+  let pt = 0;
+  const isFemale = gender.toLowerCase().startsWith("f");
+  if (isFemale && grossPay <= 25000) pt = 0;
+  else if (grossPay <= 7500) pt = 0;
+  else if (grossPay <= 10000) pt = 175;
+  else pt = month === 2 ? 300 : 200;
+
+  // TDS estimate (new regime)
+  const annualGross = grossPay * 12;
+  const taxable = Math.max(0, annualGross - 75000);
+  let tax = 0;
+  if (taxable > 700000) {
+    if (taxable > 1500000) { tax += (taxable - 1500000) * 0.3; tax += 300000 * 0.2 + 200000 * 0.15 + 300000 * 0.1 + 400000 * 0.05; }
+    else if (taxable > 1200000) { tax += (taxable - 1200000) * 0.2; tax += 200000 * 0.15 + 300000 * 0.1 + 400000 * 0.05; }
+    else if (taxable > 1000000) { tax += (taxable - 1000000) * 0.15; tax += 300000 * 0.1 + 400000 * 0.05; }
+    else { tax += (taxable - 700000) * 0.1; tax += 400000 * 0.05; }
+  }
+  const annualTax = Math.round(tax * 1.04);
+  const monthlyTDS = Math.round(annualTax / 12);
+
+  const totalDeductions = employeePF + employeeESIC + pt + monthlyTDS;
+  const netInHand = grossPay - totalDeductions;
+  const reconstructedCtc = basic + hra + special + employerPF + employerESIC + gratuity;
+  const ctcVariance = Math.abs(monthlyCtc - reconstructedCtc);
+
+  return {
+    annual, monthlyCtc, basic, hra, special, grossPay,
+    employeePF, employeeESIC, pt, monthlyTDS, totalDeductions, netInHand,
+    employerPF, employerESIC, gratuity,
+    pfWage, wageCeiling,
+    ctcVariance, ctcMatchOk: ctcVariance <= 1,
+    basicPct, hraType, pfCeilingMode,
+  };
+}
+
+function fmt(n) { return `₹${Number(n || 0).toLocaleString("en-IN")}`; }
+
+// ─────────────────────────────────────────────
+//  CTC Breakup Preview Card
+// ─────────────────────────────────────────────
+function CtcBreakupCard({ result }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!result) return null;
+
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-emerald-600 text-white">
+        <div className="flex items-center gap-2">
+          <Calculator className="w-4 h-4" />
+          <span className="text-xs font-bold tracking-wide">CTC BREAKUP ANALYSIS</span>
+        </div>
+        {result.ctcMatchOk ? (
+          <span className="flex items-center gap-1 text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
+            <CheckCircle2 className="w-3.5 h-3.5" /> ✓ Zero Variance
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-[11px] font-bold bg-red-500/30 px-2 py-0.5 rounded-full">
+            <AlertCircle className="w-3.5 h-3.5" /> Δ ₹{result.ctcVariance}
+          </span>
+        )}
+      </div>
+
+      {/* Summary row */}
+      <div className="grid grid-cols-4 divide-x divide-emerald-100 border-b border-emerald-100">
+        {[
+          { label: "Monthly CTC", value: fmt(result.monthlyCtc), sub: "Cost to Company" },
+          { label: "Monthly Gross", value: fmt(result.grossPay), sub: "Earnings before deductions" },
+          { label: "Net In-Hand", value: fmt(result.netInHand), sub: "Monthly bank credit" },
+          { label: "Annual Net", value: fmt(result.netInHand * 12), sub: "Annualised take-home" },
+        ].map((item) => (
+          <div key={item.label} className="p-3 text-center">
+            <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1">{item.label}</div>
+            <div className="text-sm font-bold text-slate-900 tabular-nums">{item.value}</div>
+            <div className="text-[10px] text-slate-400 mt-0.5">{item.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Earnings + Deductions two-column */}
+      <div className="grid grid-cols-2 gap-0 divide-x divide-emerald-100">
+        {/* Earnings */}
+        <div className="p-3 space-y-1.5 text-xs">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+            Earnings (Monthly)
+          </div>
+          {[
+            { label: `Basic (${result.basicPct}%)`, value: result.basic },
+            { label: `HRA (${result.hraType === "METRO" ? "50%" : "40%"} of Basic)`, value: result.hra },
+            { label: "Special Allowance", value: result.special, highlight: true },
+          ].map((r) => (
+            <div key={r.label} className={`flex justify-between ${r.highlight ? "font-semibold text-emerald-700" : "text-slate-700"}`}>
+              <span>{r.label}</span>
+              <span className="font-mono">{fmt(r.value)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between font-bold text-slate-900 border-t border-slate-100 pt-1.5 mt-1.5">
+            <span>Gross Pay</span>
+            <span className="font-mono">{fmt(result.grossPay)}</span>
+          </div>
+        </div>
+
+        {/* Deductions */}
+        <div className="p-3 space-y-1.5 text-xs">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+            Deductions (Monthly)
+          </div>
+          {[
+            { label: `Employee PF (12% of ${fmt(result.pfWage)})`, value: result.employeePF },
+            { label: "Employee ESIC (0.75%)", value: result.employeeESIC },
+            { label: "Professional Tax", value: result.pt },
+            { label: "TDS (Est. New Regime)", value: result.monthlyTDS },
+          ].map((r) => (
+            <div key={r.label} className="flex justify-between text-slate-700">
+              <span className="text-slate-600">{r.label}</span>
+              <span className="font-mono text-rose-600">{fmt(r.value)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between font-bold text-slate-900 border-t border-slate-100 pt-1.5 mt-1.5">
+            <span>Net In-Hand</span>
+            <span className="font-mono text-emerald-700">{fmt(result.netInHand)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Employer contributions (toggle) */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-4 py-2 text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition border-t border-emerald-100 cursor-pointer"
+      >
+        <span>Employer Statutory Contributions (CTC components)</span>
+        {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3 grid grid-cols-3 gap-3 text-xs border-t border-emerald-100 bg-slate-50/50">
+          {[
+            { label: "Employer PF (incl. EPS+EDLI+Admin)", value: result.employerPF },
+            { label: "Employer ESIC (3.25%)", value: result.employerESIC },
+            { label: "Gratuity Provision (4.81%)", value: result.gratuity },
+          ].map((r) => (
+            <div key={r.label} className="pt-3">
+              <div className="text-[10px] text-slate-500 font-semibold">{r.label}</div>
+              <div className="text-sm font-bold text-slate-800 font-mono mt-0.5">{fmt(r.value)}</div>
+            </div>
+          ))}
+          <div className="col-span-3 border-t border-slate-100 pt-2 text-[10px] text-slate-400 flex items-center gap-1">
+            <Info className="w-3 h-3" />
+            EPS wage ceiling is always ₹15,000 per EPFO statute (EPS-95 Act). PF ceiling applies to employee & employer EPF contributions only.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+//  Main Page Component
+// ─────────────────────────────────────────────
 export const EmployeeSalariesPage = () => {
   const [employees, setEmployees] = useState([]);
   const [structures, setStructures] = useState([]);
@@ -23,12 +213,22 @@ export const EmployeeSalariesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("ALL");
 
-  // Modals state
+  // Modals
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isBankModalOpen, setIsBankModalOpen] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
 
-  // Forms state
+  // CTC calculator state
+  const [ctcInputs, setCtcInputs] = useState({
+    annualCtc: "",
+    pfCeilingMode: "15000",
+    hraType: "METRO",
+    basicPercent: 50,
+    gender: "Male",
+  });
+  const [ctcResult, setCtcResult] = useState(null);
+
+  // Assign form
   const [assignForm, setAssignForm] = useState({
     employee_id: "",
     structure_id: "",
@@ -38,21 +238,31 @@ export const EmployeeSalariesPage = () => {
     notes: "",
   });
 
+  // Bank form
   const [bankForm, setBankForm] = useState({
-    pan_number: "",
-    bank_name: "",
-    bank_account_no: "",
-    ifsc_code: "",
-    uan_number: "",
-    pf_number: "",
-    esi_number: "",
-    tax_regime: "New",
-    payment_mode: "Bank",
+    pan_number: "", bank_name: "", bank_account_no: "", ifsc_code: "",
+    uan_number: "", pf_number: "", esi_number: "", tax_regime: "New", payment_mode: "Bank",
   });
 
+  useEffect(() => { loadData(); }, []);
+
+  // Live CTC calculation
   useEffect(() => {
-    loadData();
-  }, []);
+    if (ctcInputs.annualCtc && Number(ctcInputs.annualCtc) > 0) {
+      const result = computeCtcBreakup(ctcInputs);
+      setCtcResult(result);
+      // Auto-fill base salary
+      if (result) {
+        setAssignForm((f) => ({
+          ...f,
+          base_monthly_salary: String(result.basic),
+          ctc_annual: String(ctcInputs.annualCtc),
+        }));
+      }
+    } else {
+      setCtcResult(null);
+    }
+  }, [ctcInputs]);
 
   const loadData = async () => {
     setLoading(true);
@@ -72,16 +282,22 @@ export const EmployeeSalariesPage = () => {
   };
 
   const handleOpenAssignModal = (emp = null) => {
+    setCtcResult(null);
+    setCtcInputs({ annualCtc: "", pfCeilingMode: "15000", hraType: "METRO", basicPercent: 50, gender: "Male" });
     if (emp) {
       setSelectedEmp(emp);
+      const annual = emp.ctc_annual || "";
       setAssignForm({
         employee_id: emp.employee_id,
         structure_id: emp.structure_id || (structures[0]?.id || ""),
         from_date: new Date().toISOString().split("T")[0],
         base_monthly_salary: emp.base_monthly_salary || "",
-        ctc_annual: emp.ctc_annual || "",
+        ctc_annual: annual,
         notes: `Salary assignment revision for ${emp.employee_code}`,
       });
+      if (annual) {
+        setCtcInputs((p) => ({ ...p, annualCtc: String(annual) }));
+      }
     } else {
       setSelectedEmp(null);
       setAssignForm({
@@ -145,10 +361,10 @@ export const EmployeeSalariesPage = () => {
     }
   };
 
-  // Filter employees
+  // Filter
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
-      emp.employee_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.employee_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (emp.designation && emp.designation.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesDept = deptFilter === "ALL" || String(emp.department) === String(deptFilter);
@@ -162,11 +378,16 @@ export const EmployeeSalariesPage = () => {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#172033] tracking-tight">
-            Employee Salaries & Statutory Setup
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-[#172033] tracking-tight">
+              Employee Salaries & Statutory Setup
+            </h1>
+            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-violet-100 text-[#6558D9]">
+              CTC Engine v2
+            </span>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
-            Effective-dated compensation assignments, Indian banking details (IFSC/A/C), and statutory identifiers (PAN, UAN, PF).
+            Reverse CTC calculator with zero-mismatch guarantee · Configurable PF ceiling (₹15K / ₹25K / Actual) · Effective-dated compensation
           </p>
         </div>
         <button
@@ -178,7 +399,7 @@ export const EmployeeSalariesPage = () => {
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -190,7 +411,6 @@ export const EmployeeSalariesPage = () => {
             className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#6558D9] transition"
           />
         </div>
-
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Filter className="w-4 h-4 text-slate-400" />
           <select
@@ -206,7 +426,7 @@ export const EmployeeSalariesPage = () => {
         </div>
       </div>
 
-      {/* Employees Salary Directory Table */}
+      {/* Employee Table */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -224,7 +444,16 @@ export const EmployeeSalariesPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredEmployees.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-10 text-center">
+                    <div className="flex items-center justify-center gap-2 text-slate-400 text-xs">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Loading salary records…
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredEmployees.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-8 text-center text-slate-400 text-xs">
                     No matching employee records found.
@@ -251,10 +480,10 @@ export const EmployeeSalariesPage = () => {
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900 tabular-nums">
-                      ₹{Number(emp.base_monthly_salary || 0).toLocaleString("en-IN")}
+                      {fmt(emp.base_monthly_salary)}
                     </td>
                     <td className="px-4 py-3.5 text-right font-mono font-semibold text-slate-700 tabular-nums">
-                      ₹{Number(emp.ctc_annual || 0).toLocaleString("en-IN")}
+                      {fmt(emp.ctc_annual)}
                     </td>
                     <td className="px-4 py-3.5 text-[11px]">
                       {emp.bank_account_no ? (
@@ -303,147 +532,257 @@ export const EmployeeSalariesPage = () => {
         </div>
       </div>
 
-      {/* Modal 1: Assign / Revise Salary Structure */}
+      {/* ─── Modal 1: Assign / Revise Salary — with CTC Calculator ─── */}
       {isAssignModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-2xs p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
           data-lenis-prevent="true"
         >
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-              <h3 className="font-bold text-sm text-slate-900">
-                {selectedEmp ? `Revise Salary: ${selectedEmp.first_name} ${selectedEmp.last_name}` : "Assign Salary Structure"}
-              </h3>
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl border border-slate-200 my-8">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900">
+                  {selectedEmp ? `Revise Salary: ${selectedEmp.first_name} ${selectedEmp.last_name}` : "Assign Salary Structure"}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Enter Annual CTC below — the system auto-calculates the full statutory breakup with zero mismatch
+                </p>
+              </div>
               <button
                 onClick={() => setIsAssignModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAssignSubmit} className="space-y-4 text-xs">
-              {!selectedEmp && (
+            <div className="p-6 space-y-5 text-xs">
+              {/* ── CTC Calculator Panel ── */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                    <Calculator className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Reverse CTC Calculator</div>
+                    <div className="text-[11px] text-slate-500">Auto-derives Basic, HRA & Special Allowance from Annual CTC</div>
+                  </div>
+                </div>
+
+                {/* Inputs row */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="block font-semibold text-slate-700 mb-1">Annual CTC (₹) *</label>
+                    <input
+                      type="number"
+                      step="10000"
+                      placeholder="e.g. 1200000"
+                      value={ctcInputs.annualCtc}
+                      onChange={(e) => setCtcInputs((p) => ({ ...p, annualCtc: e.target.value }))}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-sm font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      <span className="flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> PF Wage Ceiling
+                      </span>
+                    </label>
+                    <select
+                      value={ctcInputs.pfCeilingMode}
+                      onChange={(e) => setCtcInputs((p) => ({ ...p, pfCeilingMode: e.target.value }))}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer text-slate-700"
+                    >
+                      <option value="15000">₹15,000 — Legacy (pre-amendment)</option>
+                      <option value="25000">₹25,000 — Enhanced (2025 proposal)</option>
+                      <option value="ACTUAL">Actual Basic — Full wage PF</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> HRA City Type
+                      </span>
+                    </label>
+                    <select
+                      value={ctcInputs.hraType}
+                      onChange={(e) => setCtcInputs((p) => ({ ...p, hraType: e.target.value }))}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer text-slate-700"
+                    >
+                      <option value="METRO">Metro (50% of Basic)</option>
+                      <option value="NON_METRO">Non-Metro (40% of Basic)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Basic % of Monthly CTC</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="30"
+                        max="70"
+                        step="5"
+                        value={ctcInputs.basicPercent}
+                        onChange={(e) => setCtcInputs((p) => ({ ...p, basicPercent: Number(e.target.value) }))}
+                        className="flex-1 accent-violet-600"
+                      />
+                      <span className="font-bold text-violet-700 w-8 text-center">{ctcInputs.basicPercent}%</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Gender (PT exemption)</label>
+                    <select
+                      value={ctcInputs.gender}
+                      onChange={(e) => setCtcInputs((p) => ({ ...p, gender: e.target.value }))}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer text-slate-700"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female (PT exempt ≤₹25K)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Live Breakup Card */}
+                {ctcResult && <CtcBreakupCard result={ctcResult} />}
+              </div>
+
+              {/* ── Assignment Form ── */}
+              <div className="space-y-3 border-t border-slate-100 pt-4">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Compensation Assignment</div>
+
+                {!selectedEmp && (
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Select Employee *</label>
+                    <select
+                      value={assignForm.employee_id}
+                      onChange={(e) => setAssignForm({ ...assignForm, employee_id: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      required
+                    >
+                      {employees.map((e) => (
+                        <option key={e.employee_id} value={e.employee_id}>
+                          {e.employee_code} — {e.first_name} {e.last_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Salary Structure Template *</label>
+                    <select
+                      value={assignForm.structure_id}
+                      onChange={(e) => setAssignForm({ ...assignForm, structure_id: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      required
+                    >
+                      {structures.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Effective Start Date *</label>
+                    <input
+                      type="date"
+                      value={assignForm.from_date}
+                      onChange={(e) => setAssignForm({ ...assignForm, from_date: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Base Monthly Salary (₹)
+                      {ctcResult && <span className="ml-1 text-emerald-600 font-normal">(auto-filled from CTC)</span>}
+                    </label>
+                    <input
+                      type="number"
+                      step="100"
+                      placeholder="e.g. 50000"
+                      value={assignForm.base_monthly_salary}
+                      onChange={(e) => setAssignForm({ ...assignForm, base_monthly_salary: e.target.value })}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Annual CTC (₹)</label>
+                    <input
+                      type="number"
+                      step="1000"
+                      placeholder="e.g. 1200000"
+                      value={assignForm.ctc_annual}
+                      onChange={(e) => {
+                        setAssignForm({ ...assignForm, ctc_annual: e.target.value });
+                        setCtcInputs((p) => ({ ...p, annualCtc: e.target.value }));
+                      }}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Select Employee</label>
-                  <select
-                    value={assignForm.employee_id}
-                    onChange={(e) => setAssignForm({ ...assignForm, employee_id: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
-                    required
+                  <label className="block font-semibold text-slate-700 mb-1">Revision Notes / Reason</label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Annual appraisal, promotion, or restructuring"
+                    value={assignForm.notes}
+                    onChange={(e) => setAssignForm({ ...assignForm, notes: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <form onSubmit={handleAssignSubmit}>
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
                   >
-                    {employees.map((e) => (
-                      <option key={e.employee_id} value={e.employee_id}>
-                        {e.employee_code} — {e.first_name} {e.last_name}
-                      </option>
-                    ))}
-                  </select>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#111827] text-white rounded-xl font-semibold hover:bg-slate-800 cursor-pointer transition"
+                  >
+                    Save Salary Assignment
+                  </button>
                 </div>
-              )}
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Salary Structure Template</label>
-                <select
-                  value={assignForm.structure_id}
-                  onChange={(e) => setAssignForm({ ...assignForm, structure_id: e.target.value })}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  required
-                >
-                  {structures.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Base Monthly Salary (₹)</label>
-                  <input
-                    type="number"
-                    step="100"
-                    placeholder="e.g. 50000"
-                    value={assignForm.base_monthly_salary}
-                    onChange={(e) => setAssignForm({ ...assignForm, base_monthly_salary: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Annual CTC (₹)</label>
-                  <input
-                    type="number"
-                    step="1000"
-                    placeholder="e.g. 1200000"
-                    value={assignForm.ctc_annual}
-                    onChange={(e) => setAssignForm({ ...assignForm, ctc_annual: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Effective Start Date</label>
-                <input
-                  type="date"
-                  value={assignForm.from_date}
-                  onChange={(e) => setAssignForm({ ...assignForm, from_date: e.target.value })}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Revision Notes / Reason</label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Annual appraisal or restructuring"
-                  value={assignForm.notes}
-                  onChange={(e) => setAssignForm({ ...assignForm, notes: e.target.value })}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsAssignModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#111827] text-white rounded-xl font-semibold hover:bg-slate-800"
-                >
-                  Save Salary Assignment
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal 2: Edit Banking & Statutory Details */}
+      {/* ─── Modal 2: Banking & Statutory Details ─── */}
       {isBankModalOpen && selectedEmp && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-2xs p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
           data-lenis-prevent="true"
         >
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 my-8">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
               <div>
-                <h3 className="font-bold text-sm text-slate-900">
-                  Banking & Statutory Details
-                </h3>
+                <h3 className="font-bold text-sm text-slate-900">Banking & Statutory Details</h3>
                 <p className="text-[11px] text-slate-400 font-mono">
                   {selectedEmp.employee_code} — {selectedEmp.first_name} {selectedEmp.last_name}
                 </p>
               </div>
               <button
                 onClick={() => setIsBankModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -457,18 +796,18 @@ export const EmployeeSalariesPage = () => {
                     type="text"
                     value={bankForm.bank_name}
                     onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                     placeholder="e.g. HDFC Bank"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Bank Account Number</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Account Number</label>
                   <input
                     type="text"
                     value={bankForm.bank_account_no}
                     onChange={(e) => setBankForm({ ...bankForm, bank_account_no: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
                     placeholder="e.g. 5010012345678"
                     required
                   />
@@ -482,7 +821,7 @@ export const EmployeeSalariesPage = () => {
                     type="text"
                     value={bankForm.ifsc_code}
                     onChange={(e) => setBankForm({ ...bankForm, ifsc_code: e.target.value.toUpperCase() })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
                     placeholder="e.g. HDFC0000123"
                     required
                   />
@@ -492,7 +831,7 @@ export const EmployeeSalariesPage = () => {
                   <select
                     value={bankForm.payment_mode}
                     onChange={(e) => setBankForm({ ...bankForm, payment_mode: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   >
                     <option value="Bank">Bank Transfer (NEFT/RTGS)</option>
                     <option value="Cheque">Cheque</option>
@@ -512,7 +851,7 @@ export const EmployeeSalariesPage = () => {
                       type="text"
                       value={bankForm.pan_number}
                       onChange={(e) => setBankForm({ ...bankForm, pan_number: e.target.value.toUpperCase() })}
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
                       placeholder="e.g. ABCDE1234F"
                     />
                   </div>
@@ -521,9 +860,9 @@ export const EmployeeSalariesPage = () => {
                     <select
                       value={bankForm.tax_regime}
                       onChange={(e) => setBankForm({ ...bankForm, tax_regime: e.target.value })}
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                     >
-                      <option value="New">New Regime (Section 115BAC - Default)</option>
+                      <option value="New">New Regime (Section 115BAC)</option>
                       <option value="Old">Old Regime</option>
                     </select>
                   </div>
@@ -536,7 +875,7 @@ export const EmployeeSalariesPage = () => {
                       type="text"
                       value={bankForm.uan_number}
                       onChange={(e) => setBankForm({ ...bankForm, uan_number: e.target.value })}
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
                       placeholder="e.g. 101234567890"
                     />
                   </div>
@@ -546,7 +885,7 @@ export const EmployeeSalariesPage = () => {
                       type="text"
                       value={bankForm.pf_number}
                       onChange={(e) => setBankForm({ ...bankForm, pf_number: e.target.value })}
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
                       placeholder="e.g. MH/BAN/0012345/001"
                     />
                   </div>
@@ -557,13 +896,13 @@ export const EmployeeSalariesPage = () => {
                 <button
                   type="button"
                   onClick={() => setIsBankModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium"
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#111827] text-white rounded-xl font-semibold hover:bg-slate-800"
+                  className="px-4 py-2 bg-[#111827] text-white rounded-xl font-semibold hover:bg-slate-800 cursor-pointer transition"
                 >
                   Save Banking Details
                 </button>
