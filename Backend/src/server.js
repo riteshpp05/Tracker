@@ -106,8 +106,14 @@ app.get(["/health", "/api/health"], async (req, res) => {
 
 // Uploads directory static serving
 const uploadsPath = path.join(__dirname, "../uploads");
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  try {
+    if (!fs.existsSync(uploadsPath)) {
+      fs.mkdirSync(uploadsPath, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("⚠️ Uploads dir skipped (read-only filesystem):", err.message);
+  }
 }
 app.use("/uploads", express.static(uploadsPath));
 

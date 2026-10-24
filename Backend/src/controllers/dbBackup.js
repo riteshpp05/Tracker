@@ -90,14 +90,25 @@ setLogger({
   debug: (msg) => console.debug(`[NODE-CRON][DEBUG] ${msg}`),
 });
 
-if (!fs.existsSync(BACKUP_DIR)) {
-  fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  console.log(`📁 Created backup directory: ${BACKUP_DIR}`);
-} else {
-  console.log(`📁 Backup directory exists: ${BACKUP_DIR}`);
+// Guard against read-only filesystem on Vercel / AWS Lambda
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) {
+      fs.mkdirSync(BACKUP_DIR, { recursive: true });
+      console.log(`📁 Created backup directory: ${BACKUP_DIR}`);
+    } else {
+      console.log(`📁 Backup directory exists: ${BACKUP_DIR}`);
+    }
+  } catch (err) {
+    console.warn("⚠️ Backup dir skipped (read-only filesystem):", err.message);
+  }
 }
 
 function runBackup() {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    console.log("ℹ️ Skipping local backup in serverless environment");
+    return;
+  }
   const now = new Date();
   const timestamp = now.toISOString().replace(/[:.]/g, "-");
   const fileName = `timetrack_${timestamp}.dump`;
