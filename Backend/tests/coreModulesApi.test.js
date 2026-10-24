@@ -92,9 +92,9 @@ async function runTests() {
     assert.ok(Array.isArray(docs));
     console.log(`  ✓ Documents retrieved: ${docs.length} corporate policies`);
 
-    // 8. Vercel Serverless Function Adapter Test
-    console.log("\n▶ 8. Vercel Serverless Function Handler Test (api/index.js)...");
-    const vercelHandler = (await import("../../api/index.js")).default;
+    // 8. Vercel Serverless Function Handler Test (src/server.js)
+    console.log("\n▶ 8. Vercel Serverless Function Handler Test (src/server.js)...");
+    const vercelHandler = (await import("../src/server.js")).default;
     assert.equal(typeof vercelHandler, "function", "Vercel export must be a function");
 
     // Test with real HTTP server on dynamic port
