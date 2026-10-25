@@ -190,6 +190,11 @@ export const EmployeePayslipsPage = () => {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">
                           {slip.payment_days} Days
                         </span>
+                        {Number(slip.timesheet_hours) > 0 && (
+                          <span className="block text-[10px] text-indigo-600 font-semibold mt-0.5">
+                            {parseFloat(slip.timesheet_hours).toFixed(1)}h logged
+                          </span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-medium text-slate-800">
                         ₹{Number(slip.gross_pay || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

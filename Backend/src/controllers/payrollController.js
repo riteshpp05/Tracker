@@ -389,6 +389,8 @@ class PayrollController {
           structureItems: packet.structureItems,
           totalWorkingDays: packet.attendance.totalWorkingDays,
           lwpDays: packet.attendance.lwpDays,
+          timesheetHours: packet.attendance.timesheetHours,
+          timesheetDays: packet.attendance.timesheetDays,
           reimbursements: packet.reimbursements,
           month,
           year,

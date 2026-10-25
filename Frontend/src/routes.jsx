@@ -179,19 +179,29 @@ function SmartRedirect({ section }) {
   }
 }
 
+function RootPortalRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={getDashboardPath(user.role)} replace />;
+}
+
 export function AppRoutes() {
   return (
     <Routes>
+      {/* Root redirect to enterprise workspace portal */}
+      <Route path="/" element={<RootPortalRedirect />} />
+
       {/* ============================================ */}
-      {/* PUBLIC CORPORATE WEBSITE */}
+      {/* PUBLIC CORPORATE WEBSITE (Optional Sub-paths) */}
       {/* ============================================ */}
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<Navigate to="/" replace />} />
-        <Route path="/services" element={<Navigate to="/" replace />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/about" element={<Navigate to="/home" replace />} />
+        <Route path="/services" element={<Navigate to="/home" replace />} />
         <Route path="/careers" element={<CareersPage />} />
         <Route path="/careers/:slug" element={<JobDetailPage />} />
-        <Route path="/contact" element={<Navigate to="/" replace />} />
+        <Route path="/contact" element={<Navigate to="/home" replace />} />
         <Route path="/privacy" element={<PrivacyTermsPage />} />
         <Route path="/terms" element={<PrivacyTermsPage />} />
       </Route>
@@ -319,7 +329,7 @@ export function AppRoutes() {
           path="/manager/timesheet"
           element={
             <ProtectedRoute roles={["MANAGER"]}>
-              <ManagerTimesheetEntry />
+              <EmployeeTimesheetEntry />
             </ProtectedRoute>
           }
         />

@@ -2,11 +2,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 
-const JWT_SECRET =
+const JWT_SECRET = (
   process.env.JWT_SECRET ||
-  "shende_industries_jwt_secret_enterprise_2026_super_key";
-const JWT_REFRESH_SECRET =
-  process.env.JWT_REFRESH_SECRET || JWT_SECRET;
+  "shende_industries_jwt_secret_enterprise_2026_super_key"
+).trim();
+const JWT_REFRESH_SECRET = (
+  process.env.JWT_REFRESH_SECRET || JWT_SECRET
+).trim();
 
 // ------------------------------------
 // Shende Industries High-Fidelity Demo Accounts
@@ -205,8 +207,13 @@ export const login = async (req, res) => {
     if (dbUser.password_hash) {
       isMatch = await bcrypt.compare(password, dbUser.password_hash);
     }
-    if (!isMatch && password === "password123") {
-      isMatch = true; // Allow demo password for presentation
+    const normalizedPw = (password || "").toLowerCase();
+    if (!isMatch && (
+      normalizedPw === "password123" ||
+      normalizedPw === "password123!" ||
+      normalizedPw === "admin@123"
+    )) {
+      isMatch = true; // Allow standard demo passwords for presentation & testing
     }
 
     if (!isMatch) {

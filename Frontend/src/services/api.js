@@ -16,6 +16,22 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Set default auth token if available in storage on load
+try {
+  const initialToken = localStorage.getItem("accessToken");
+  if (initialToken) {
+    api.defaults.headers.common["Authorization"] = `Bearer ${initialToken}`;
+  }
+} catch {}
+
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common["Authorization"];
+  }
+};
+
 // 1. REQUEST INTERCEPTOR
 // Add auth token and handle caching
 api.interceptors.request.use(
@@ -24,18 +40,18 @@ api.interceptors.request.use(
 
     // Add auth token
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (config.headers && typeof config.headers.set === "function") {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
-    // Pass through standard request without interceptor rejection hack
-
-    // Debug logging
-    console.log("🔒 API Request:", {
-      url: config.url,
-      method: config.method,
-      cached: false,
-      token: token ? token.substring(0, 20) + "..." : "none",
-    });
+    // Debug logging in dev only if enabled
+    if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === "true") {
+      console.log("🔒 API Request:", config.method?.toUpperCase(), config.url);
+    }
 
     return config;
   },
@@ -43,6 +59,21 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// Concurrency queue for token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // 2. RESPONSE INTERCEPTOR
 // Handle token refresh, caching, and retries
@@ -62,9 +93,11 @@ api.interceptors.response.use(
     // 2. Auto-Clear Cache on Mutation (POST, PUT, DELETE, PATCH)
     // This ensures lists are refreshed immediately after any data change
     if (["post", "put", "delete", "patch"].includes(response.config.method)) {
-      console.log(
-        `♻️ Mutation detected (${response.config.method.toUpperCase()}), clearing cache...`
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          `♻️ Mutation detected (${response.config.method.toUpperCase()}), clearing cache...`
+        );
+      }
       clearCache();
     }
 
@@ -73,9 +106,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // ✅ SKIP REFRESH LOGIC FOR LOGIN/AUTH ENDPOINTS
-    // If login fails with 401/403, simply return the error to the UI component
-    if (originalRequest.url.includes("/auth/login")) {
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // SKIP REFRESH LOGIC FOR LOGIN/AUTH ENDPOINTS
+    if (
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/refresh")
+    ) {
       return Promise.reject(error);
     }
 
@@ -83,52 +122,86 @@ api.interceptors.response.use(
     // TOKEN REFRESH LOGIC (Handles 401 Unauthorized only)
     // ---------------------------------------------------------
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; // Mark as retried to prevent infinite loops
+      if (isRefreshing) {
+        // If already refreshing, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (originalRequest.headers && typeof originalRequest.headers.set === "function") {
+              originalRequest.headers.set("Authorization", `Bearer ${token}`);
+            } else {
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) {
+        isRefreshing = false;
+        processQueue(new Error("No refresh token available"), null);
+        return Promise.reject(error);
+      }
 
       try {
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (!refreshToken) {
-          throw new Error("No refresh token available");
-        }
-
         console.log("🔄 Attempting token refresh...");
 
-        // Use standard axios to avoid interceptor loops during refresh
-        // Update URL if your backend route is different (e.g., /auth/refresh)
-        const response = await axios.post(`${API_URL}/auth/refresh-token`, {
-          refreshToken,
-        });
+        // Try /auth/refresh-token first, with fallback to /auth/refresh
+        let response;
+        try {
+          response = await axios.post(`${API_URL}/auth/refresh-token`, {
+            refreshToken,
+          });
+        } catch (firstErr) {
+          if (firstErr.response?.status === 404) {
+            response = await axios.post(`${API_URL}/auth/refresh`, {
+              refreshToken,
+            });
+          } else {
+            throw firstErr;
+          }
+        }
 
         const { accessToken, refreshToken: newRefreshToken } = response.data;
 
-        // Update Storage
         localStorage.setItem("accessToken", accessToken);
-        // Some backends rotate refresh tokens, some don't. Save if provided.
         if (newRefreshToken) {
           localStorage.setItem("refreshToken", newRefreshToken);
         }
 
-        console.log("✅ Token refreshed successfully");
+        setAuthToken(accessToken);
+        processQueue(null, accessToken);
 
-        // Update headers for future requests
-        api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+        if (originalRequest.headers && typeof originalRequest.headers.set === "function") {
+          originalRequest.headers.set("Authorization", `Bearer ${accessToken}`);
+        } else {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        }
 
-        // Update header for THIS retried request
-        originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;
-
-        // Retry the original request with the new token
-        // Using axios(originalRequest) ensures a clean retry
-        return axios(originalRequest);
+        return api(originalRequest);
       } catch (refreshError) {
-        console.error("❌ Refresh failed, logging out:", refreshError);
+        processQueue(refreshError, null);
+        console.error("❌ Refresh failed, clearing session:", refreshError);
 
-        // Clear everything
-        localStorage.clear();
-        clearCache(); // Clear API cache
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("currentUser");
+        localStorage.removeItem("user");
+        clearCache();
 
-        // Redirect to login
-        window.location.href = "/login";
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

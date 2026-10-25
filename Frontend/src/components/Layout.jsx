@@ -138,7 +138,6 @@ export const Layout = ({ children }) => {
       {
         section: "Enterprise Portal",
         items: [
-          { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
           { name: "Holidays", href: "/holidays", icon: CalendarDays },
           { name: "Notice Board", href: "/announcements", icon: Megaphone },
           { name: "Policy Center", href: "/documents", icon: BookOpen },
@@ -159,7 +158,6 @@ export const Layout = ({ children }) => {
         items: [
           { name: "Dashboard", href: "/hr/dashboard", icon: LayoutDashboard },
           { name: "Employees", href: "/admin/users", icon: Users },
-          { name: "Recruitment (ATS)", href: "/hr/recruitment", icon: UserPlus },
         ],
       },
       {

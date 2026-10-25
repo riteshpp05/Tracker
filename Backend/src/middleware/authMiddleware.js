@@ -11,7 +11,7 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: "Access token required" });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || "shende_industries_jwt_secret_enterprise_2026_super_key";
+    const jwtSecret = (process.env.JWT_SECRET || "shende_industries_jwt_secret_enterprise_2026_super_key").trim();
     const decoded = jwt.verify(token, jwtSecret);
 
     let user = null;

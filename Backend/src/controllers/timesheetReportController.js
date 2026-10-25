@@ -686,9 +686,9 @@ export const getTimesheetReport = async (req, res) => {
         dte.entry_date,
         dte.week_start_date,
         dte.week_end_date,
-        dte.total_hours,
-        dte.billable_hours,
-        dte.non_billable_hours,
+        CASE WHEN dte.total_hours > 24 THEN ROUND(dte.total_hours / 60.0, 2) ELSE ROUND(dte.total_hours, 2) END AS total_hours,
+        CASE WHEN dte.billable_hours > 24 THEN ROUND(dte.billable_hours / 60.0, 2) ELSE ROUND(dte.billable_hours, 2) END AS billable_hours,
+        CASE WHEN dte.non_billable_hours > 24 THEN ROUND(dte.non_billable_hours / 60.0, 2) ELSE ROUND(dte.non_billable_hours, 2) END AS non_billable_hours,
         dte.ticket_number,
         dte.submitted_at,
         dte.approved_at,
@@ -760,9 +760,9 @@ export const getTimesheetReport = async (req, res) => {
     const summaryQuery = `
       SELECT
         COUNT(*)                                                         AS total_entries,
-        COALESCE(SUM(dte.total_hours),        0)                        AS total_hours,
-        COALESCE(SUM(dte.billable_hours),     0)                        AS billable_hours,
-        COALESCE(SUM(dte.non_billable_hours), 0)                        AS non_billable_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.total_hours > 24 THEN dte.total_hours / 60.0 ELSE dte.total_hours END), 0), 2) AS total_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.billable_hours > 24 THEN dte.billable_hours / 60.0 ELSE dte.billable_hours END), 0), 2) AS billable_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.non_billable_hours > 24 THEN dte.non_billable_hours / 60.0 ELSE dte.non_billable_hours END), 0), 2) AS non_billable_hours,
         COUNT(DISTINCT dte.employee_id)                                  AS total_employees,
         COUNT(DISTINCT dte.project_id)                                   AS total_projects,
         COUNT(DISTINCT dte.ticket_id)                                    AS total_tickets,
@@ -961,18 +961,18 @@ export const getGroupedTimesheetReport = async (req, res) => {
     const query = `
       SELECT
         dte.entry_date,
-        SUM(dte.total_hours)                AS day_total_hours,
-        SUM(dte.billable_hours)             AS day_billable_hours,
-        SUM(dte.non_billable_hours)         AS day_non_billable_hours,
+        ROUND(SUM(CASE WHEN dte.total_hours > 24 THEN dte.total_hours / 60.0 ELSE dte.total_hours END), 2) AS day_total_hours,
+        ROUND(SUM(CASE WHEN dte.billable_hours > 24 THEN dte.billable_hours / 60.0 ELSE dte.billable_hours END), 2) AS day_billable_hours,
+        ROUND(SUM(CASE WHEN dte.non_billable_hours > 24 THEN dte.non_billable_hours / 60.0 ELSE dte.non_billable_hours END), 2) AS day_non_billable_hours,
         COUNT(dte.entry_id)                 AS day_entry_count,
         COUNT(DISTINCT dte.employee_id)     AS day_employee_count,
 
         json_agg(
           json_build_object(
             'entry_id',           dte.entry_id,
-            'total_hours',        dte.total_hours,
-            'billable_hours',     dte.billable_hours,
-            'non_billable_hours', dte.non_billable_hours,
+            'total_hours',        CASE WHEN dte.total_hours > 24 THEN ROUND(dte.total_hours / 60.0, 2) ELSE ROUND(dte.total_hours, 2) END,
+            'billable_hours',     CASE WHEN dte.billable_hours > 24 THEN ROUND(dte.billable_hours / 60.0, 2) ELSE ROUND(dte.billable_hours, 2) END,
+            'non_billable_hours', CASE WHEN dte.non_billable_hours > 24 THEN ROUND(dte.non_billable_hours / 60.0, 2) ELSE ROUND(dte.non_billable_hours, 2) END,
             'description',        dte.description,
             'ticket_number',      dte.ticket_number,
             'status',             ts.name,
@@ -1153,9 +1153,9 @@ export const getEmployeeSummaryReport = async (req, res) => {
 
         -- Aggregates (COALESCE → 0 when no entries match)
         COUNT(dte.entry_id)                          AS total_entries,
-        COALESCE(SUM(dte.total_hours),        0)     AS total_hours,
-        COALESCE(SUM(dte.billable_hours),     0)     AS billable_hours,
-        COALESCE(SUM(dte.non_billable_hours), 0)     AS non_billable_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.total_hours > 24 THEN dte.total_hours / 60.0 ELSE dte.total_hours END), 0), 2) AS total_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.billable_hours > 24 THEN dte.billable_hours / 60.0 ELSE dte.billable_hours END), 0), 2) AS billable_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.non_billable_hours > 24 THEN dte.non_billable_hours / 60.0 ELSE dte.non_billable_hours END), 0), 2) AS non_billable_hours,
         COUNT(DISTINCT dte.entry_date)               AS working_days,
         COUNT(DISTINCT dte.project_id)               AS total_projects,
         COUNT(DISTINCT dte.ticket_id)                AS total_tickets,
@@ -1163,7 +1163,7 @@ export const getEmployeeSummaryReport = async (req, res) => {
         MIN(dte.entry_date)                          AS first_entry_date,
 
         ROUND(
-          COALESCE(SUM(dte.total_hours), 0) /
+          (COALESCE(SUM(CASE WHEN dte.total_hours > 24 THEN dte.total_hours / 60.0 ELSE dte.total_hours END), 0)) /
           NULLIF(COUNT(DISTINCT dte.entry_date), 0)
         , 2)                                         AS avg_hours_per_day,
 
@@ -1476,9 +1476,9 @@ export const getTicketSummaryReport = async (req, res) => {
         -- Logged timesheet aggregates
         COUNT(DISTINCT dte.employee_id)               AS total_employees,
         COUNT(dte.entry_id)                           AS total_entries,
-        COALESCE(SUM(dte.total_hours),        0)      AS logged_hours,
-        COALESCE(SUM(dte.billable_hours),     0)      AS logged_billable_hours,
-        COALESCE(SUM(dte.non_billable_hours), 0)      AS logged_non_billable_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.total_hours > 24 THEN dte.total_hours / 60.0 ELSE dte.total_hours END), 0), 2) AS logged_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.billable_hours > 24 THEN dte.billable_hours / 60.0 ELSE dte.billable_hours END), 0), 2) AS logged_billable_hours,
+        ROUND(COALESCE(SUM(CASE WHEN dte.non_billable_hours > 24 THEN dte.non_billable_hours / 60.0 ELSE dte.non_billable_hours END), 0), 2) AS logged_non_billable_hours,
         COUNT(DISTINCT dte.entry_date)                AS working_days,
         MIN(dte.entry_date)                           AS first_entry,
         MAX(dte.entry_date)                           AS last_entry,
@@ -1486,7 +1486,7 @@ export const getTicketSummaryReport = async (req, res) => {
         -- Utilisation: logged vs estimated (null when no estimate)
         CASE
           WHEN tm.estimated_hours > 0 THEN
-            ROUND((COALESCE(SUM(dte.total_hours), 0) / tm.estimated_hours) * 100, 1)
+            ROUND((COALESCE(SUM(CASE WHEN dte.total_hours > 24 THEN dte.total_hours / 60.0 ELSE dte.total_hours END), 0) / tm.estimated_hours) * 100, 1)
           ELSE NULL
         END                                           AS utilisation_pct,
 
@@ -2244,9 +2244,9 @@ export const exportTimesheetReport = async (req, res) => {
          tm.ticket_name,
          tm.zoho_crm_code                             AS ticket_code,
          task.task                                    AS task_name,
-         dte.total_hours,
-         dte.billable_hours,
-         dte.non_billable_hours,
+         CASE WHEN dte.total_hours > 24 THEN ROUND(dte.total_hours / 60.0, 2) ELSE ROUND(dte.total_hours, 2) END AS total_hours,
+         CASE WHEN dte.billable_hours > 24 THEN ROUND(dte.billable_hours / 60.0, 2) ELSE ROUND(dte.billable_hours, 2) END AS billable_hours,
+         CASE WHEN dte.non_billable_hours > 24 THEN ROUND(dte.non_billable_hours / 60.0, 2) ELSE ROUND(dte.non_billable_hours, 2) END AS non_billable_hours,
          ts.name                                      AS status,
          dte.description,
          dte.ticket_number,

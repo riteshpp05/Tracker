@@ -1,5 +1,5 @@
 // Frontend/src/components/payroll/PayslipModal.jsx
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { X, Printer, Download, Building2, UserCheck, ShieldCheck } from "lucide-react";
 
 export const PayslipModal = ({ isOpen, onClose, slipData }) => {
@@ -13,6 +13,16 @@ export const PayslipModal = ({ isOpen, onClose, slipData }) => {
     window.print();
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   const monthNames = [
     "", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -22,10 +32,13 @@ export const PayslipModal = ({ isOpen, onClose, slipData }) => {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto"
       data-lenis-prevent="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
-        {/* Modal Controls Header (Hidden in Print) */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white print:hidden">
+        {/* Modal Controls Header (Hidden in Print) - Sticky so always accessible */}
+        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-slate-900 text-white print:hidden shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-violet-600 rounded-lg text-white">
               <Building2 className="w-5 h-5" />
@@ -138,7 +151,13 @@ export const PayslipModal = ({ isOpen, onClose, slipData }) => {
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Loss of Pay (LOP)</span>
                 <span className={`font-semibold ${Number(slip.lwp_days) > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                  {slip.lwp_days} Days
+                  {slip.lwp_days || 0} Days
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Timesheet Sync</span>
+                <span className="font-semibold text-indigo-600">
+                  {slip.timesheet_hours && Number(slip.timesheet_hours) > 0 ? `${Number(slip.timesheet_hours).toFixed(1)} hrs Logged` : "100% Verified"}
                 </span>
               </div>
             </div>

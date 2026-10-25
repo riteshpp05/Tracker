@@ -59,7 +59,9 @@ export const MonthlyPayrollPage = () => {
 
       // Check if existing run exists
       const runsRes = await payrollService.getPayrollRuns();
-      const existingRun = (runsRes.data || []).find((r) => r.month === month && r.year === year);
+      const existingRun = (runsRes.data || []).find(
+        (r) => Number(r.month) === Number(month) && Number(r.year) === Number(year)
+      );
       if (existingRun) {
         const detailRes = await payrollService.getPayrollRunById(existingRun.id);
         setRunData(detailRes.data);
@@ -478,10 +480,12 @@ export const MonthlyPayrollPage = () => {
                         {slip.department_name || "Engineering"}
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <span className="font-medium text-slate-800">{slip.payment_days}d</span>
-                        {Number(slip.lwp_days) > 0 && (
-                          <span className="text-[10px] text-rose-500 font-bold ml-1">({slip.lwp_days} LOP)</span>
-                        )}
+                        <div className="font-medium text-slate-800">{slip.payment_days}d</div>
+                        {Number(slip.timesheet_hours) > 0 ? (
+                          <div className="text-[10px] text-indigo-600 font-semibold">{parseFloat(slip.timesheet_hours).toFixed(1)}h logged</div>
+                        ) : Number(slip.lwp_days) > 0 ? (
+                          <div className="text-[10px] text-rose-500 font-bold">({slip.lwp_days} LOP)</div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3.5 text-right font-mono font-semibold text-slate-900 tabular-nums">
                         ₹{Number(slip.gross_pay).toLocaleString("en-IN", { minimumFractionDigits: 2 })}

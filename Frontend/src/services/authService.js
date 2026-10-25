@@ -1,4 +1,4 @@
-import api from "./api";
+import api, { setAuthToken } from "./api";
 
 class AuthService {
   // Normalize user shape to always expose { id, email, role, roleId, ... }
@@ -35,6 +35,7 @@ class AuthService {
       localStorage.setItem("accessToken", response.data.accessToken);
       localStorage.setItem("refreshToken", response.data.refreshToken);
       localStorage.setItem("user", JSON.stringify(normalizedUser));
+      setAuthToken(response.data.accessToken);
     }
 
     // Return the same shape the rest of the app expects
@@ -56,6 +57,7 @@ class AuthService {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
+      setAuthToken(null);
     }
   }
 

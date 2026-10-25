@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
-import { clearCache } from "../services/api";
+import { clearCache, setAuthToken } from "../services/api";
 import { toast } from "sonner";
 
 const TOKEN_KEYS = {
@@ -117,6 +117,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem(TOKEN_KEYS.access, accessToken);
       localStorage.setItem(TOKEN_KEYS.refresh, refreshToken);
       localStorage.setItem(TOKEN_KEYS.user, JSON.stringify(normalizedUser));
+      setAuthToken(accessToken);
 
       setUser(normalizedUser);
       // toast.success("Login successful!");
@@ -142,6 +143,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem(TOKEN_KEYS.access);
       localStorage.removeItem(TOKEN_KEYS.refresh);
       localStorage.removeItem(TOKEN_KEYS.user);
+      setAuthToken(null);
 
       // Clear API Cache on Logout
       clearCache();

@@ -149,11 +149,15 @@ class PayrollInputCollector {
       `SELECT 
          employee_id,
          COUNT(entry_id) AS total_entries,
-         COALESCE(SUM(total_hours), 0) AS total_hours,
-         COALESCE(SUM(billable_hours), 0) AS billable_hours
+         COUNT(DISTINCT entry_date) AS timesheet_days,
+         ROUND(COALESCE(SUM(CASE WHEN total_hours > 24 THEN total_hours / 60.0 ELSE total_hours END), 0), 2) AS total_hours,
+         ROUND(COALESCE(SUM(CASE WHEN billable_hours > 24 THEN billable_hours / 60.0 ELSE billable_hours END), 0), 2) AS billable_hours
        FROM daily_timesheet_entries
        WHERE entry_date BETWEEN $1 AND $2
-         AND status IN (2, 3) -- Submitted or Approved
+         AND (
+           status IN (SELECT id FROM timesheet_status WHERE LOWER(name) IN ('approved', 'admin_approved', 'manager_approved', 'submitted', 'saved'))
+           OR status IN (1, 2, 3)
+         )
        GROUP BY employee_id`,
       [startDate, endDate]
     );
@@ -164,6 +168,7 @@ class PayrollInputCollector {
         totalHours: Number(ts.total_hours) || 0,
         billableHours: Number(ts.billable_hours) || 0,
         entries: Number(ts.total_entries) || 0,
+        timesheetDays: Number(ts.timesheet_days) || 0,
       };
     }
 
@@ -213,6 +218,7 @@ class PayrollInputCollector {
           paidLeaveDays: leaveInfo.paidDays,
           timesheetHours: tsInfo.totalHours,
           billableHours: tsInfo.billableHours,
+          timesheetDays: tsInfo.timesheetDays,
         },
         reimbursements: expInfo.totalReimbursement,
         claimCount: expInfo.claimCount,

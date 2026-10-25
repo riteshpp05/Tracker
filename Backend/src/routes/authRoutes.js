@@ -7,6 +7,7 @@ const router = express.Router();
 // Public routes (no auth)
 router.post("/login", authController.login);
 router.post("/refresh", authController.refreshToken);
+router.post("/refresh-token", authController.refreshToken);
 
 // Protected routes (require auth)
 router.post("/logout", authenticateToken, authController.logout);
