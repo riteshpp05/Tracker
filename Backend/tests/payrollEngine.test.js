@@ -187,10 +187,59 @@ test("TDS — no tax below basic exemption (taxable ≤ ₹3,00,000)", () => {
   assert.equal(tds.rebate87A, false, "87A applies only when taxable > 3L");
 });
 
-test("TDS — ₹12,00,000 gross (taxable ₹11,25,000)", () => {
-  // Slabs: 3L–7L(5%) = ₹20,000 + 7L–10L(10%) = ₹30,000 + 10L–11.25L(15%) = ₹18,750
-  // Base = ₹68,750; Cess 4% = ₹2,750; Total = ₹71,500; Monthly = ₹5,958
+test("TDS (AY 2026-27) — ₹12,00,000 gross qualifies for Sec 87A rebate (taxable ₹11,25,000 ≤ ₹12,00,000)", () => {
+  // AY 2026-27 New Tax Regime (Finance Act 2025/2026):
+  // Taxable income <= ₹12 Lakhs has full Section 87A rebate of up to ₹60,000 => Tax = ₹0
   const tds = statutoryRulesService.calculateTDS(1200000);
+  assert.equal(tds.taxableIncome, 1125000);
+  assert.equal(tds.baseTax, 0);
+  assert.equal(tds.cess, 0);
+  assert.equal(tds.annualTax, 0);
+  assert.equal(tds.monthlyTDS, 0);
+  assert.equal(tds.rebate87A, true);
+  assert.equal(tds.zeroTaxQualified, true);
+});
+
+test("TDS (AY 2026-27) — ₹12,75,000 gross (exactly ₹12,00,000 taxable) has ZERO tax", () => {
+  // Salaried gross up to ₹12.75L has zero tax due to ₹75k std deduction + ₹12L rebate
+  const tds = statutoryRulesService.calculateTDS(1275000);
+  assert.equal(tds.taxableIncome, 1200000);
+  assert.equal(tds.annualTax, 0);
+  assert.equal(tds.monthlyTDS, 0);
+  assert.equal(tds.rebate87A, true);
+});
+
+test("TDS (AY 2026-27) — ₹15,00,000 gross (taxable ₹14,25,000 exceeds ₹12L rebate ceiling)", () => {
+  // Slabs: 0-4L(0) + 4-8L(5%=20k) + 8-12L(10%=40k) + 12-14.25L(15%=33,750)
+  // Base = ₹93,750; Cess 4% = ₹3,750; Total = ₹97,500; Monthly = ₹8,125
+  const tds = statutoryRulesService.calculateTDS(1500000);
+  assert.equal(tds.taxableIncome, 1425000);
+  assert.equal(tds.baseTax, 93750);
+  assert.equal(tds.cess, 3750);
+  assert.equal(tds.annualTax, 97500);
+  assert.equal(tds.monthlyTDS, 8125);
+});
+
+test("TDS (AY 2026-27) — ₹20,00,000 gross (taxable ₹19,25,000)", () => {
+  // Slabs: 0-4L(0) + 4-8L(5%=20k) + 8-12L(10%=40k) + 12-16L(15%=60k) + 16-19.25L(20%=65k)
+  // Base = 20k + 40k + 60k + 65k = ₹1,85,000; Cess 4% = ₹7,400; Total = ₹1,92,400; Monthly = ₹16,033
+  const tds = statutoryRulesService.calculateTDS(2000000);
+  assert.equal(tds.taxableIncome, 1925000);
+  assert.equal(tds.baseTax, 185000);
+  assert.equal(tds.cess, 7400);
+  assert.equal(tds.annualTax, 192400);
+  assert.equal(tds.monthlyTDS, Math.round(192400 / 12)); // 16,033
+});
+
+test("TDS (Legacy AY 2025-26) — ₹12,00,000 gross (taxable ₹11,25,000 with legacy ₹7L rebate)", () => {
+  // Under AY 2025-26 (Finance (No. 2) Act 2024):
+  // 3L–7L(5%) = 20k + 7L–10L(10%) = 30k + 10L–11.25L(15%) = 18,750
+  // Base = 68,750; Cess = 2,750; Total = 71,500; Monthly = 5,958
+  const tds = statutoryRulesService.calculateTDS({
+    grossAnnual: 1200000,
+    regime: "New",
+    assessmentYear: "AY_2025_26",
+  });
   assert.equal(tds.taxableIncome, 1125000);
   assert.equal(tds.baseTax, 68750);
   assert.equal(tds.cess, 2750);
@@ -198,16 +247,20 @@ test("TDS — ₹12,00,000 gross (taxable ₹11,25,000)", () => {
   assert.equal(tds.monthlyTDS, 5958);
 });
 
-test("TDS — ₹20,00,000 gross (taxable ₹19,25,000 — top slab 30%)", () => {
-  // Slabs: 3L–7L(5%)=20k + 7L–10L(10%)=30k + 10L–12L(15%)=30k + 12L–15L(20%)=60k
-  //        + 15L–19.25L(30%) = 4,25,000 × 0.30 = 1,27,500
-  // Base = 2,67,500; Cess 4% = 10,700; Total = 2,78,200; Monthly = 23,183
-  const tds = statutoryRulesService.calculateTDS(2000000);
-  assert.equal(tds.taxableIncome, 1925000);
-  assert.equal(tds.baseTax, 267500);
-  assert.equal(tds.cess, 10700);
-  assert.equal(tds.annualTax, 278200);
-  assert.equal(tds.monthlyTDS, Math.round(278200 / 12)); // 23,183
+test("TDS Spreading — YTD aware remaining tax spread over remaining months", () => {
+  // Gross ₹20,00,000 has annual tax ₹1,92,400. If ₹96,200 already deducted and 6 months remain:
+  // Remaining tax = ₹96,200 / 6 = ₹16,033/mo
+  const tds = statutoryRulesService.calculateTDS({
+    grossAnnual: 2000000,
+    regime: "New",
+    assessmentYear: "AY_2026_27",
+    ytdDeducted: 96200,
+    remainingMonths: 6,
+  });
+  assert.equal(tds.annualTax, 192400);
+  assert.equal(tds.remainingTax, 96200);
+  assert.equal(tds.remainingMonths, 6);
+  assert.equal(tds.monthlyTDS, 16033);
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -268,9 +321,9 @@ const fullSlip = payrollEngine.calculateSalarySlip({
 test("Full attendance — paymentDays = 30", () => assert.equal(fullSlip.paymentDays, 30));
 test("Full attendance — grossPay = ₹87,500 (Basic 50k + HRA 25k + Special 10k + Reimb 2.5k)", () =>
   assert.equal(fullSlip.grossPay, 87500));
-test("Full attendance — totalDeductions = ₹7,958 (PF 1,800 + PT 200 + TDS 5,958)", () =>
-  assert.equal(fullSlip.totalDeductions, 7958));
-test("Full attendance — netPay = ₹79,542", () => assert.equal(fullSlip.netPay, 79542));
+test("Full attendance — totalDeductions = ₹2,000 (PF 1,800 + PT 200; TDS is ₹0 due to AY 2026-27 Sec 87A rebate)", () =>
+  assert.equal(fullSlip.totalDeductions, 2000));
+test("Full attendance — netPay = ₹85,500", () => assert.equal(fullSlip.netPay, 85500));
 console.log(`    Net pay: ₹${fullSlip.netPay} (${fullSlip.netPayInWords})`);
 
 // ═══════════════════════════════════════════════════════════════════
@@ -292,8 +345,8 @@ const proratedSlip = payrollEngine.calculateSalarySlip({
 test("6 LOP — paymentDays = 24", () => assert.equal(proratedSlip.paymentDays, 24));
 test("6 LOP — lwpDays = 6", () => assert.equal(proratedSlip.lwpDays, 6));
 test("6 LOP — grossPay = ₹68,000 (prorated 24/30)", () => assert.equal(proratedSlip.grossPay, 68000));
-test("6 LOP — totalDeductions = ₹7,958", () => assert.equal(proratedSlip.totalDeductions, 7958));
-test("6 LOP — netPay = ₹60,042", () => assert.equal(proratedSlip.netPay, 60042));
+test("6 LOP — totalDeductions = ₹2,000 (PF 1,800 + PT 200)", () => assert.equal(proratedSlip.totalDeductions, 2000));
+test("6 LOP — netPay = ₹66,000", () => assert.equal(proratedSlip.netPay, 66000));
 
 // ═══════════════════════════════════════════════════════════════════
 // 8. Mid-Month Joiner Proration (NEW)
@@ -697,6 +750,180 @@ test("Pilot comparison — material EPF ceiling variance diagnosed", () => {
   const employeeResult = report.comparisons[0];
   assert.equal(employeeResult.status, "MATERIAL_VARIANCE");
   assert.ok(employeeResult.fields.employeeDeductions.rootCause);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 16. Post-2014 EPS Exclusion, VPF, and EDLI Statutory Cap
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n▶ EPF Advanced Statutory Rules (Post-2014 EPS Exclusion, VPF, EDLI Cap)");
+
+test("EPF — Post-2014 new joiner with Basic > ₹15,000 has 0% EPS and 100% employer contribution to EPF", () => {
+  // Supreme Court ruling (Nov 4, 2022) & GSR 609(E):
+  // New employees joining on or after Sept 1, 2014 with Basic > ₹15,000 are ineligible for EPS-95.
+  // Full 12% employer share goes to EPF Account No. 1.
+  const epf = statutoryRulesService.calculateEPF({
+    basicPay: 40000,
+    pfCeilingMode: "ACTUAL",
+    isPost2014NewMemberAboveCap: true,
+  });
+  assert.equal(epf.pfWage, 40000);
+  assert.equal(epf.employeePF, 4800); // 12% of 40,000
+  assert.equal(epf.employerEPS, 0, "EPS must be 0 for post-2014 high-wage joiner");
+  assert.equal(epf.employerEPF, 4800, "Full 12% must go to EPF");
+  assert.equal(epf.isPost2014NewMemberAboveCap, true);
+  assert.equal(epf.employerEDLI, 75, "EDLI is capped at ₹75/mo (0.5% of ₹15,000 max)");
+  assert.equal(epf.employerAdmin, 200, "Admin charge is 0.5% of actual PF wage");
+});
+
+test("EPF — VPF voluntary deduction without employer matching", () => {
+  const epf = statutoryRulesService.calculateEPF({
+    basicPay: 20000,
+    pfCeilingMode: "15000",
+    vpfAmount: 5000,
+  });
+  assert.equal(epf.employeePF, 1800); // 12% of 15,000 statutory cap
+  assert.equal(epf.vpf, 5000);
+  assert.equal(epf.totalEmployeeDeduction, 6800);
+  assert.equal(epf.employerEPS, 1250); // 8.33% of 15,000
+  assert.equal(epf.employerEPF, 550);  // 1,800 - 1,250
+  assert.equal(epf.totalEmployerPF, 1800 + 75 + 75); // EPF + EPS + EDLI(75) + Admin(75) = 1950
+});
+
+test("EPF — EDLI is strictly capped at ₹75/mo even at ₹1,00,000 basic wage", () => {
+  const epf = statutoryRulesService.calculateEPF({
+    basicPay: 100000,
+    pfCeilingMode: "ACTUAL",
+  });
+  assert.equal(epf.employerEDLI, 75, "EDLI maximum monthly contribution is ₹75 (0.5% of ₹15,000)");
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 17. ESIC Rule 50 Contribution Period Continuity Proviso
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n▶ ESIC Rule 50 Contribution Period Continuity Proviso");
+
+test("ESIC — wage crossing ₹21,000 mid-period continues coverage if covered at period start", () => {
+  // Rule 50 of ESI (Central) Rules, 1950:
+  // If an employee's wage exceeds ₹21,000 after start of contribution period (Apr-Sep or Oct-Mar),
+  // they remain covered until the end of that contribution period on actual gross wage.
+  const esic = statutoryRulesService.calculateESIC({
+    grossPay: 26000,
+    month: 11, // November (part of Oct-Mar period)
+    isCoveredInCurrentContributionPeriod: true,
+  });
+  assert.equal(esic.eligible, true, "Must remain eligible until end of contribution period");
+  assert.equal(esic.employeeESIC, Math.round(26000 * 0.0075)); // ₹195
+  assert.equal(esic.employerESIC, Math.round(26000 * 0.0325)); // ₹845
+  assert.equal(esic.isCoveredInCurrentContributionPeriod, true);
+});
+
+test("ESIC — wage exceeding ₹21,000 without prior period coverage is NOT eligible", () => {
+  const esic = statutoryRulesService.calculateESIC({
+    grossPay: 26000,
+    month: 11,
+    isCoveredInCurrentContributionPeriod: false,
+  });
+  assert.equal(esic.eligible, false);
+  assert.equal(esic.employeeESIC, 0);
+  assert.equal(esic.employerESIC, 0);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 18. Payment of Gratuity Act, 1972 (Costing Accrual vs Statutory Vesting Liability)
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n▶ Payment of Gratuity Act, 1972 (Costing Accrual vs Statutory Vesting)");
+
+test("Gratuity — 3 years service: Costing accrual active (4.81%) but statutory liability is UNVESTED (₹0)", () => {
+  const basic = 40000;
+  const gratuity = statutoryRulesService.calculateGratuity({
+    basicPay: basic,
+    yearsOfService: 3,
+    isCostingOnly: false,
+  });
+  assert.equal(gratuity.monthlyAccrualCost, Math.round(basic * (15 / (26 * 12)))); // ₹1,923 (4.8077%)
+  assert.equal(gratuity.isVested, false, "Gratuity requires 5 years continuous service under Sec 4(1)");
+  assert.equal(gratuity.statutoryEntitlement, 0, "No statutory payout due upon separation before 5 years");
+});
+
+test("Gratuity — 6 years service: Statutory liability is VESTED", () => {
+  const basic = 50000;
+  const gratuity = statutoryRulesService.calculateGratuity({
+    basicPay: basic,
+    yearsOfService: 6,
+  });
+  assert.equal(gratuity.isVested, true);
+  // Formula: (15 / 26) * 50,000 * 6 = 1,73,076.92 => 1,73,077
+  assert.equal(gratuity.statutoryEntitlement, Math.round((15 / 26) * basic * 6));
+});
+
+test("Gratuity — 25 years service at high wage is capped at ₹20 Lakhs statutory ceiling", () => {
+  const basic = 200000;
+  const gratuity = statutoryRulesService.calculateGratuity({
+    basicPay: basic,
+    yearsOfService: 25,
+  });
+  // Raw formula: (15 / 26) * 200,000 * 25 = ₹28,84,615
+  // Capped at Payment of Gratuity Act statutory ceiling: ₹20,00,000
+  assert.equal(gratuity.isVested, true);
+  assert.equal(gratuity.statutoryEntitlement, 2000000);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 19. High Earner Salary Slip with TDS Withholding
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n▶ Salary Slip — High Earner with TDS Withholding");
+
+test("High earner salary slip correctly withholds TDS under AY 2026-27", () => {
+  const highEarnerEmployee = {
+    employee_id: "test-high-earner",
+    employee_code: "SH-EXEC-01",
+    first_name: "Rajesh",
+    last_name: "Patil",
+    gender: "Male",
+    tax_regime: "New",
+    assessment_year: "AY_2026_27",
+  };
+  const highEarnerAssignment = {
+    base_monthly_salary: 100000,
+    ctc_annual: 2400000, // ₹24 Lakhs
+  };
+  const highEarnerSlip = payrollEngine.calculateSalarySlip({
+    employee: highEarnerEmployee,
+    assignment: highEarnerAssignment,
+    structureItems: mockStructureItems,
+    totalWorkingDays: 30,
+    lwpDays: 0,
+    reimbursements: 0,
+    month: 10, // October (fyMonthIndex = 6 => 6 remaining months in FY)
+    year: 2026,
+  });
+  assert.ok(highEarnerSlip.grossPay > 100000);
+  const tdsDeduction = highEarnerSlip.deductions.find((d) => d.componentCode === "TDS");
+  assert.ok(tdsDeduction, "TDS must be deducted for ₹24L CTC employee");
+  assert.ok(tdsDeduction.amount > 0, "TDS amount must be positive");
+  assert.equal(
+    highEarnerSlip.netPay,
+    highEarnerSlip.grossPay - highEarnerSlip.totalDeductions,
+    "Net pay must equal gross pay minus total deductions"
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 20. Statutory Legal Registry Metadata
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n▶ Statutory Legal Registry Metadata Verification");
+
+test("Statutory registry returns official citations for all statutory regimes", () => {
+  const registry = statutoryRulesService.getStatutoryRegistry();
+  assert.ok(registry.epf.legislation.includes("1952"));
+  assert.ok(registry.epf.statutoryWageCeiling === 15000);
+  assert.ok(registry.esic.legislation.includes("1948"));
+  assert.ok(registry.esic.rule50ContinuityProviso);
+  assert.ok(registry.ptMaharashtra.legislation.includes("1975"));
+  assert.ok(registry.tds.currentAssessmentYear === "AY_2026_27");
+  assert.ok(registry.tds.section87ARebateThreshold === 1200000);
+  assert.ok(registry.gratuity.statutoryCeiling === 2000000);
+  assert.ok(registry.gratuity.vestingPeriodYears === 5);
 });
 
 // ═══════════════════════════════════════════════════════════════════

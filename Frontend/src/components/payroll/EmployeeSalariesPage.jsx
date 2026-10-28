@@ -54,15 +54,36 @@ function computeCtcBreakup({ annualCtc, pfCeilingMode = "15000", hraType = "METR
   else if (grossPay <= 10000) pt = 175;
   else pt = month === 2 ? 300 : 200;
 
-  // TDS estimate (new regime)
+  // TDS estimate (AY 2026-27 New Tax Regime, Sec 87A rebate up to ₹12L)
   const annualGross = grossPay * 12;
   const taxable = Math.max(0, annualGross - 75000);
   let tax = 0;
-  if (taxable > 700000) {
-    if (taxable > 1500000) { tax += (taxable - 1500000) * 0.3; tax += 300000 * 0.2 + 200000 * 0.15 + 300000 * 0.1 + 400000 * 0.05; }
-    else if (taxable > 1200000) { tax += (taxable - 1200000) * 0.2; tax += 200000 * 0.15 + 300000 * 0.1 + 400000 * 0.05; }
-    else if (taxable > 1000000) { tax += (taxable - 1000000) * 0.15; tax += 300000 * 0.1 + 400000 * 0.05; }
-    else { tax += (taxable - 700000) * 0.1; tax += 400000 * 0.05; }
+  if (taxable > 1200000) {
+    if (taxable > 2400000) {
+      tax += (taxable - 2400000) * 0.30;
+      tax += 400000 * 0.25;
+      tax += 400000 * 0.20;
+      tax += 400000 * 0.15;
+      tax += 400000 * 0.10;
+      tax += 400000 * 0.05;
+    } else if (taxable > 2000000) {
+      tax += (taxable - 2000000) * 0.25;
+      tax += 400000 * 0.20;
+      tax += 400000 * 0.15;
+      tax += 400000 * 0.10;
+      tax += 400000 * 0.05;
+    } else if (taxable > 1600000) {
+      tax += (taxable - 1600000) * 0.20;
+      tax += 400000 * 0.15;
+      tax += 400000 * 0.10;
+      tax += 400000 * 0.05;
+    } else {
+      tax += (taxable - 1200000) * 0.15;
+      tax += 400000 * 0.10;
+      tax += 400000 * 0.05;
+    }
+  } else {
+    tax = 0;
   }
   const annualTax = Math.round(tax * 1.04);
   const monthlyTDS = Math.round(annualTax / 12);
@@ -158,7 +179,7 @@ function CtcBreakupCard({ result }) {
             { label: `Employee PF (12% of ${fmt(result.pfWage)})`, value: result.employeePF },
             { label: "Employee ESIC (0.75%)", value: result.employeeESIC },
             { label: "Professional Tax", value: result.pt },
-            { label: "TDS (Est. New Regime)", value: result.monthlyTDS },
+            { label: "TDS (Est. AY 2026-27)", value: result.monthlyTDS },
           ].map((r) => (
             <div key={r.label} className="flex justify-between text-slate-700">
               <span className="text-slate-600">{r.label}</span>
@@ -186,7 +207,7 @@ function CtcBreakupCard({ result }) {
           {[
             { label: "Employer PF (incl. EPS+EDLI+Admin)", value: result.employerPF },
             { label: "Employer ESIC (3.25%)", value: result.employerESIC },
-            { label: "Gratuity Provision (4.81%)", value: result.gratuity },
+            { label: "Gratuity Provision (4.81% Accrual)", value: result.gratuity },
           ].map((r) => (
             <div key={r.label} className="pt-3">
               <div className="text-[10px] text-slate-500 font-semibold">{r.label}</div>

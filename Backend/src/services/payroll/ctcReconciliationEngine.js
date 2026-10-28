@@ -45,6 +45,8 @@ class CtcReconciliationEngine {
     gender = "Male",
     allowSpecialBalancing = true,
     includeGratuity = true,
+    assessmentYear = "AY_2026_27",
+    isPost2014NewMemberAboveCap = false,
   }) {
     const annual = Math.max(0, Number(annualCtc) || 0);
     const discrepancies = [];
@@ -77,11 +79,20 @@ class CtcReconciliationEngine {
     const hraMonthly = this.round(basicMonthly * hraPct);
 
     // 3. Employer Statutory Obligations (Part of CTC)
-    // Gratuity provision: 15/26 days per year of service = 4.81% of Basic salary
-    const gratuityMonthly = includeGratuity ? this.round(basicMonthly * 0.0481) : 0;
+    // Gratuity provision: 15/26 days per year of service = 4.81% of Basic salary (Costing Accrual)
+    const gratuityData = statutoryRulesService.calculateGratuity({
+      basicPay: basicMonthly,
+      yearsOfService: 0,
+      isCostingOnly: true,
+    });
+    const gratuityMonthly = includeGratuity ? gratuityData.monthlyAccrualCost : 0;
 
     // EPF Employer Contribution
-    const epfData = statutoryRulesService.calculateEPF(basicMonthly, pfCeilingMode);
+    const epfData = statutoryRulesService.calculateEPF({
+      basicPay: basicMonthly,
+      pfCeilingMode,
+      isPost2014NewMemberAboveCap,
+    });
     const employerPfMonthly = epfData.totalEmployerPF;
     if (epfData.complianceFlag) {
       policyFlags.push({
@@ -139,7 +150,11 @@ class CtcReconciliationEngine {
 
     // TDS estimate (Annualized projection under Section 115BAC New Regime)
     const projectedAnnualGross = grossPayMonthly * 12;
-    const tdsData = statutoryRulesService.calculateTDS(projectedAnnualGross, "New");
+    const tdsData = statutoryRulesService.calculateTDS({
+      grossAnnual: projectedAnnualGross,
+      regime: "New",
+      assessmentYear,
+    });
     const monthlyTds = tdsData.monthlyTDS;
 
     const totalEmployeeDeductionsMonthly = employeePfMonthly + employeeEsicMonthly + professionalTaxMonthly + monthlyTds;
@@ -190,7 +205,7 @@ class CtcReconciliationEngine {
       employerCostsBreakdown: [
         { code: "PF_EMPLOYER", name: "Provident Fund (Employer)", monthly: employerPfMonthly, annual: employerPfMonthly * 12, isStatutory: true },
         { code: "ESIC_EMPLOYER", name: "ESIC (Employer)", monthly: employerEsicMonthly, annual: employerEsicMonthly * 12, isStatutory: true },
-        { code: "GRATUITY", name: "Gratuity Provision (4.81%)", monthly: gratuityMonthly, annual: gratuityMonthly * 12, isStatutory: true },
+        { code: "GRATUITY_PROVISION", name: "Gratuity Provision (4.81% Accrual - AS 15)", monthly: gratuityMonthly, annual: gratuityMonthly * 12, isStatutory: true, note: "Employer accrual for CTC budgeting; vests after 5 years continuous service under Sec 4(1)" },
       ],
       employeeDeductionsBreakdown: [
         { code: "PF_EMPLOYEE", name: "Provident Fund (Employee)", monthly: employeePfMonthly, annual: employeePfMonthly * 12, isStatutory: true },

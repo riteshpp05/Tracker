@@ -312,9 +312,16 @@ class PayrollCalculationEngine {
     const statutoryGrossPay = taxableGrossPay;
 
     // 2. Calculate Deductions (Statutory & Voluntary)
-    // EPF Employee Contribution (supporting ₹15k, ₹25k, or Actual ceiling)
+    // EPF Employee Contribution (supporting ₹15k, ₹25k, or Actual ceiling, post-2014 joiner EPS rules, and VPF)
     const pfCeilingMode = assignment?.pf_ceiling_mode || employee?.pf_ceiling_mode || (employee?.opted_full_wage ? 'ACTUAL' : '15000');
-    const epfBreakdown = statutoryRulesService.calculateEPF(proratedBasic, pfCeilingMode);
+    const isPost2014NewMemberAboveCap = Boolean(assignment?.is_post_2014_joiner_above_cap ?? employee?.is_post_2014_joiner_above_cap);
+    const vpfAmount = Number(assignment?.vpf_amount ?? employee?.vpf_amount) || 0;
+    const epfBreakdown = statutoryRulesService.calculateEPF({
+      basicPay: proratedBasic,
+      pfCeilingMode,
+      isPost2014NewMemberAboveCap,
+      vpfAmount,
+    });
     if (structureItems.some((i) => i.code === "PF_EMPLOYEE") || true) {
       deductionItems.push({
         componentCode: "PF_EMPLOYEE",
@@ -324,10 +331,26 @@ class PayrollCalculationEngine {
         isStatutory: true,
         notes: `12% of PF Wage (₹${epfBreakdown.pfWage.toLocaleString("en-IN")})`,
       });
+      if (epfBreakdown.vpf > 0) {
+        deductionItems.push({
+          componentCode: "VPF",
+          componentName: "Voluntary Provident Fund",
+          type: "DEDUCTION",
+          amount: epfBreakdown.vpf,
+          isStatutory: false,
+          notes: "Employee voluntary contribution (no employer matching)",
+        });
+      }
     }
 
     // ESIC Employee Contribution (based on statutory gross, excluding non-taxable expense reimbursements)
-    const esicBreakdown = statutoryRulesService.calculateESIC(statutoryGrossPay);
+    // Rule 50 continuity: if employee was covered at start of contribution period (Apr-Sep or Oct-Mar), continues mid-period
+    const isCoveredInCurrentContributionPeriod = Boolean(assignment?.is_covered_in_contribution_period ?? employee?.is_covered_in_contribution_period);
+    const esicBreakdown = statutoryRulesService.calculateESIC({
+      grossPay: statutoryGrossPay,
+      month,
+      isCoveredInCurrentContributionPeriod,
+    });
     if (esicBreakdown.eligible) {
       deductionItems.push({
         componentCode: "ESIC_EMPLOYEE",
@@ -357,7 +380,19 @@ class PayrollCalculationEngine {
     // Annual taxable projection based on taxable earnings only (never inflates tax with travel reimbursements)
     const annualEstimatedGross = Math.max(ctcAnnual, taxableGrossPay * 12);
     const regime = employee.tax_regime || "New";
-    const tdsBreakdown = statutoryRulesService.calculateTDS(annualEstimatedGross, regime);
+    const assessmentYear = employee.assessment_year || assignment?.assessment_year || "AY_2026_27";
+    const ytdDeducted = Number(employee.ytd_tax_deducted) || 0;
+    const monthNum = Number(month) || 1;
+    const fyMonthIndex = (monthNum >= 4) ? (monthNum - 4) : (monthNum + 8);
+    const remainingMonths = Math.max(1, 12 - fyMonthIndex);
+
+    const tdsBreakdown = statutoryRulesService.calculateTDS({
+      grossAnnual: annualEstimatedGross,
+      regime,
+      assessmentYear,
+      ytdDeducted,
+      remainingMonths,
+    });
     if (tdsBreakdown.monthlyTDS > 0) {
       deductionItems.push({
         componentCode: "TDS",
@@ -365,7 +400,7 @@ class PayrollCalculationEngine {
         type: "DEDUCTION",
         amount: tdsBreakdown.monthlyTDS,
         isStatutory: true,
-        notes: `Sec 192 TDS (Annual taxable ₹${tdsBreakdown.taxableIncome.toLocaleString("en-IN")})`,
+        notes: `Sec 192 TDS (${tdsBreakdown.assessmentYear}, Annual taxable ₹${tdsBreakdown.taxableIncome.toLocaleString("en-IN")})`,
       });
     }
 
