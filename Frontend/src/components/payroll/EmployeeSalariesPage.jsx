@@ -36,11 +36,11 @@ function computeCtcBreakup({ annualCtc, pfCeilingMode = "15000", hraType = "METR
   const employerAdmin = Math.round(pfWage * 0.005);
   const employerPF = employerEPS + employerEPF + employerEDLI + employerAdmin;
 
-  // ESIC on estimated gross (before special)
+  // ESIC on estimated gross (symmetric rounding per statutory audit 2026-10-28)
   const estimatedGross = basic + hra;
   const esicEligible = estimatedGross <= 21000;
   const employerESIC = esicEligible ? Math.round(estimatedGross * 0.0325) : 0;
-  const employeeESIC = esicEligible ? Math.ceil(estimatedGross * 0.0075) : 0;
+  const employeeESIC = esicEligible ? Math.round(estimatedGross * 0.0075) : 0;
 
   // Special allowance — balancing figure
   const special = Math.max(0, monthlyCtc - basic - hra - employerPF - employerESIC - gratuity);

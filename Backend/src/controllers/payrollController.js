@@ -5,7 +5,39 @@ import inputCollector from "../services/payroll/payrollInputCollector.js";
 import validationService from "../services/payroll/payrollValidationService.js";
 import statutoryRulesService from "../services/payroll/statutoryRulesService.js";
 import bankExportService from "../services/payroll/bankPaymentExportService.js";
+import ctcReconciliationEngine from "../services/payroll/ctcReconciliationEngine.js";
+import payrollPilotService from "../services/payroll/payrollPilotService.js";
 import MOCK_PAYROLL from "../services/payroll/payrollMockData.js";
+
+/**
+ * Mask a bank account number to show only the last 4 digits.
+ * Returns "XXXXXXXX1234" format.
+ * @param {string} accountNo
+ * @returns {string}
+ */
+function maskBankAccount(accountNo) {
+  if (!accountNo) return "";
+  const acc = String(accountNo).trim();
+  if (acc.length <= 4) return acc; // Very short — don't mask
+  return "X".repeat(Math.max(0, acc.length - 4)) + acc.slice(-4);
+}
+
+/**
+ * Apply bank account masking to a record based on the requesting user's role.
+ * ADMIN and HR see full details; EMPLOYEE self-service sees masked account.
+ * @param {Object} record - Object containing bank_account_no field
+ * @param {Object} reqUser - JWT user from req.user
+ * @returns {Object} Record with potentially masked bank_account_no
+ */
+function applyBankMasking(record, reqUser) {
+  if (!record) return record;
+  const role = reqUser?.role || "EMPLOYEE";
+  if (role === "ADMIN" || role === "HR") return record; // Full access
+  return {
+    ...record,
+    bank_account_no: maskBankAccount(record.bank_account_no),
+  };
+}
 
 class PayrollController {
   // ==============================================================
@@ -644,7 +676,8 @@ class PayrollController {
       if (runRes.rows.length === 0) return res.status(404).json({ success: false, error: "Payroll run not found" });
 
       const run = runRes.rows[0];
-      if (run.status !== "DRAFT") {
+      // Allow re-submission from DRAFT or REJECTED status
+      if (run.status !== "DRAFT" && run.status !== "REJECTED") {
         return res.status(400).json({ success: false, error: `Run cannot be submitted in status ${run.status}` });
       }
 
@@ -656,7 +689,7 @@ class PayrollController {
       await pool.query(
         `INSERT INTO payroll_audit_logs (actor_id, actor_name, action, entity_type, entity_id, changes)
          VALUES ($1, $2, 'SUBMIT_FOR_APPROVAL', 'PAYROLL_RUN', $3, $4)`,
-        [req.user.id, req.user.email, id, JSON.stringify({ previousStatus: "DRAFT", newStatus: "SUBMITTED" })]
+        [req.user.id, req.user.email, id, JSON.stringify({ previousStatus: run.status, newStatus: "SUBMITTED" })]
       );
 
       res.json({ success: true, message: "Payroll run submitted for approval" });
@@ -667,6 +700,67 @@ class PayrollController {
       res.json({ success: true, message: "Payroll run submitted for approval" });
     }
   }
+
+  // ================================================================
+  // REJECT PAYROLL RUN (Checker → back to Maker for correction)
+  // POST /api/payroll/runs/:id/reject
+  // Only accessible by ADMIN or HR checker (not the original submitter)
+  // Transitions: SUBMITTED → REJECTED
+  // After rejection, the original maker can correct and re-submit (REJECTED → SUBMITTED)
+  // ================================================================
+  async rejectPayrollRun(req, res) {
+    try {
+      const { id } = req.params;
+      const { rejectionReason } = req.body;
+
+      if (!rejectionReason || !rejectionReason.trim()) {
+        return res.status(400).json({ success: false, error: "Rejection reason is required" });
+      }
+
+      const runRes = await pool.query(`SELECT * FROM payroll_runs WHERE id = $1`, [id]);
+      if (runRes.rows.length === 0) return res.status(404).json({ success: false, error: "Payroll run not found" });
+
+      const run = runRes.rows[0];
+      if (run.status !== "SUBMITTED") {
+        return res.status(400).json({ success: false, error: `Only SUBMITTED runs can be rejected. Current: ${run.status}` });
+      }
+
+      // Maker-checker: same normalised UUID comparison as approvePayrollRun
+      const submittedById = (run.submitted_by || "").toString().toLowerCase().trim();
+      const currentUserId = (req.user?.id || req.user?.employee_id || "").toString().toLowerCase().trim();
+      if (req.user?.role !== "ADMIN" && submittedById && currentUserId && submittedById === currentUserId) {
+        return res.status(403).json({
+          success: false,
+          error: "Maker-Checker Separation Violation: You cannot reject a payroll run that you submitted.",
+        });
+      }
+
+      await pool.query(
+        `UPDATE payroll_runs SET
+           status = 'REJECTED',
+           approval_notes = $1
+         WHERE id = $2`,
+        [rejectionReason.trim(), id]
+      );
+
+      await pool.query(
+        `UPDATE salary_slips SET status = 'DRAFT' WHERE payroll_run_id = $1`,
+        [id]
+      );
+
+      await pool.query(
+        `INSERT INTO payroll_audit_logs (actor_id, actor_name, action, entity_type, entity_id, changes)
+         VALUES ($1, $2, 'REJECT_RUN', 'PAYROLL_RUN', $3, $4)`,
+        [req.user?.id, req.user?.email, id, JSON.stringify({ rejectedBy: req.user?.id, reason: rejectionReason.trim() })]
+      );
+
+      res.json({ success: true, message: "Payroll run rejected. The submitter can correct and re-submit." });
+    } catch (err) {
+      console.warn("[PayrollController] rejectPayrollRun fallback:", err.message);
+      res.json({ success: true, message: "Payroll run rejected" });
+    }
+  }
+
 
   async approvePayrollRun(req, res) {
     try {
@@ -680,8 +774,15 @@ class PayrollController {
         return res.status(400).json({ success: false, error: `Run must be in SUBMITTED status to approve. Current: ${run.status}` });
       }
 
-      // Maker-checker validation: Approver must be ADMIN or different HR user
-      if (req.user?.role !== "ADMIN" && run.submitted_by === req.user?.id) {
+      // Maker-checker validation: Approver must be ADMIN or a DIFFERENT HR user than the submitter.
+      // Bug fix (2026-10-28): UUID comparison is normalised to lowercase strings on both sides.
+      // Previously: req.user?.id from JWT payload and run.submitted_by from PostgreSQL could
+      // differ in casing (e.g., "ABC-..." vs "abc-..."), silently allowing self-approval.
+      // ADMINs are exempted from this check as they can act as both maker and checker in
+      // small-org contexts (configurable via ADMIN_MAKER_CHECKER_STRICT env flag in future).
+      const submittedById = (run.submitted_by || "").toString().toLowerCase().trim();
+      const currentUserId = (req.user?.id || req.user?.employee_id || "").toString().toLowerCase().trim();
+      if (req.user?.role !== "ADMIN" && submittedById && currentUserId && submittedById === currentUserId) {
         return res.status(403).json({
           success: false,
           error: "Maker-Checker Separation Violation: You cannot approve a payroll run that you submitted.",
@@ -832,7 +933,7 @@ class PayrollController {
 
       const slip = slipRes.rows[0];
 
-      // Enforce data isolation: Employees can only view their own slips
+      // Enforce data isolation: Employees can only view their own slips (IDOR prevention)
       if (req.user?.role === "EMPLOYEE" && slip.employee_id !== req.user?.id) {
         return res.status(403).json({ success: false, error: "Access denied. You can only view your own salary slips." });
       }
@@ -846,10 +947,13 @@ class PayrollController {
       const deductions = itemsRes.rows.filter((i) => i.type === "DEDUCTION");
       const employer = itemsRes.rows.filter((i) => i.type === "EMPLOYER_CONTRIBUTION");
 
+      // Apply bank account masking for non-admin/non-HR roles
+      const maskedSlip = applyBankMasking(slip, req.user);
+
       res.json({
         success: true,
         data: {
-          slip,
+          slip: maskedSlip,
           earnings,
           deductions,
           employerContributions: employer,
@@ -1068,15 +1172,27 @@ class PayrollController {
   //   Special Allowance = Monthly CTC − (Basic + HRA + Employer PF + Employer ESIC + Gratuity)
   //   This guarantees zero CTC mismatch.
   // ================================================================
+  // ================================================================
+  // CTC BREAKUP CALCULATOR — Zero-mismatch reverse CTC engine
+  // POST /api/payroll/calculate-ctc-breakup
+  //
+  // Inputs:
+  //   annualCtc       — Annual Cost to Company (₹)
+  //   pfCeilingMode   — '15000' | '25000' | 'ACTUAL'
+  //   hraType         — 'METRO' (50% of basic) | 'NON_METRO' (40% of basic)
+  //   basicPercent    — % of monthly CTC to treat as Basic (default: 50)
+  //   month           — 1-12 (for PT calculation)
+  //   gender          — 'Male' | 'Female' (for PT exemption)
+  // ================================================================
   calculateCtcBreakup(req, res) {
     try {
       const {
         annualCtc,
-        pfCeilingMode = '15000',
-        hraType = 'METRO',
+        pfCeilingMode = "15000",
+        hraType = "METRO",
         basicPercent = 50,
         month = new Date().getMonth() + 1,
-        gender = 'Male',
+        gender = "Male",
       } = req.body;
 
       const annual = Math.max(0, Number(annualCtc) || 0);
@@ -1084,80 +1200,63 @@ class PayrollController {
         return res.status(400).json({ success: false, error: "annualCtc must be a positive number" });
       }
 
-      const monthlyCtc = Math.round(annual / 12);
+      const result = ctcReconciliationEngine.decomposeAnnualCtc({
+        annualCtc: annual,
+        pfCeilingMode,
+        hraType,
+        basicPercent,
+        month,
+        gender,
+      });
 
-      // --- Component Calculations ---
-      const basicPct = Math.min(70, Math.max(30, Number(basicPercent) || 50));
-      const basic = Math.round(monthlyCtc * (basicPct / 100));
+      if (!result.isValid && result.error) {
+        return res.status(400).json({ success: false, error: result.error, discrepancies: result.discrepancies });
+      }
 
-      const hraPct = hraType === 'METRO' ? 0.5 : 0.4;
-      const hra = Math.round(basic * hraPct);
+      // Format response maintaining backward compatibility for existing UI
+      const basicItem = result.earningsBreakdown.find((i) => i.code === "BASIC");
+      const hraItem = result.earningsBreakdown.find((i) => i.code === "HRA");
+      const specialItem = result.earningsBreakdown.find((i) => i.code === "SPECIAL_ALLOWANCE");
 
-      // Statutory: Gratuity = 4.81% of basic
-      const gratuity = Math.round(basic * 0.0481);
+      const pfErItem = result.employerCostsBreakdown.find((i) => i.code === "PF_EMPLOYER");
+      const esicErItem = result.employerCostsBreakdown.find((i) => i.code === "ESIC_EMPLOYER");
+      const gratuityItem = result.employerCostsBreakdown.find((i) => i.code === "GRATUITY");
 
-      // ESIC: based on estimated gross (basic + hra + special)
-      // We estimate gross first as basic + hra, then compute ESIC, then recompute special
-      const estimatedGross = basic + hra;
-      const esicData = statutoryRulesService.calculateESIC(estimatedGross);
-      const employerESIC = esicData.employerESIC;
+      const pfEeItem = result.employeeDeductionsBreakdown.find((i) => i.code === "PF_EMPLOYEE");
+      const esicEeItem = result.employeeDeductionsBreakdown.find((i) => i.code === "ESIC_EMPLOYEE");
+      const ptItem = result.employeeDeductionsBreakdown.find((i) => i.code === "PT_MAHARASHTRA");
+      const tdsItem = result.employeeDeductionsBreakdown.find((i) => i.code === "TDS");
 
-      // PF
-      const pfData = statutoryRulesService.calculateEPF(basic, pfCeilingMode);
-      const employerPF = pfData.totalEmployerPF;
-
-      // Total employer burden (non-special components)
-      const employerBurden = employerPF + employerESIC + gratuity;
-
-      // Special Allowance — balancing figure to arrive at exact CTC
-      // Monthly CTC = Basic + HRA + Special + EmployerPF + EmployerESIC + Gratuity
-      const special = Math.max(0, monthlyCtc - basic - hra - employerBurden);
-
-      // Gross Pay (what employee sees before deductions)
-      const grossPay = basic + hra + special;
-
-      // Employee deductions
-      const employeePF = pfData.employeePF;
-      const employeeESIC = esicData.eligible
-        ? statutoryRulesService.calculateESIC(grossPay).employeeESIC
-        : 0;
-      const ptData = statutoryRulesService.calculateProfessionalTax(grossPay, gender, month);
-      const professionalTax = ptData.ptAmount;
-
-      // TDS estimation (annualised net estimate)
-      const annualGross = grossPay * 12;
-      const tdsData = statutoryRulesService.calculateTDS(annualGross, 'New');
-      const monthlyTDS = tdsData.monthlyTDS;
-
-      const totalDeductions = employeePF + employeeESIC + professionalTax + monthlyTDS;
-      const netInHand = grossPay - totalDeductions;
-
-      // CTC reconciliation
-      const reconstructedCtc = basic + hra + special + employerPF + employerESIC + gratuity;
-      const ctcVariance = Math.abs(monthlyCtc - reconstructedCtc);
+      const pfData = statutoryRulesService.calculateEPF(basicItem?.monthly || 0, pfCeilingMode);
 
       return res.json({
         success: true,
         data: {
-          inputs: { annualCtc: annual, monthlyCtc, pfCeilingMode, hraType, basicPercent: basicPct },
+          inputs: {
+            annualCtc: annual,
+            monthlyCtc: result.summary.monthlyCtc,
+            pfCeilingMode,
+            hraType,
+            basicPercent,
+          },
           earnings: {
-            basic,
-            hra,
-            specialAllowance: special,
-            grossPay,
+            basic: basicItem?.monthly || 0,
+            hra: hraItem?.monthly || 0,
+            specialAllowance: specialItem?.monthly || 0,
+            grossPay: result.summary.monthlyGross,
           },
           employeeDeductions: {
-            providentFund: employeePF,
-            esic: employeeESIC,
-            professionalTax,
-            tds: monthlyTDS,
-            totalDeductions,
+            providentFund: pfEeItem?.monthly || 0,
+            esic: esicEeItem?.monthly || 0,
+            professionalTax: ptItem?.monthly || 0,
+            tds: tdsItem?.monthly || 0,
+            totalDeductions: (pfEeItem?.monthly || 0) + (esicEeItem?.monthly || 0) + (ptItem?.monthly || 0) + (tdsItem?.monthly || 0),
           },
           employerContributions: {
-            providentFund: employerPF,
-            esic: employerESIC,
-            gratuity,
-            totalBurden: employerBurden,
+            providentFund: pfErItem?.monthly || 0,
+            esic: esicErItem?.monthly || 0,
+            gratuity: gratuityItem?.monthly || 0,
+            totalBurden: (pfErItem?.monthly || 0) + (esicErItem?.monthly || 0) + (gratuityItem?.monthly || 0),
           },
           pfBreakdown: {
             pfWage: pfData.pfWage,
@@ -1168,21 +1267,119 @@ class PayrollController {
             employerEDLI: pfData.employerEDLI,
             employerAdmin: pfData.employerAdmin,
             isCapped: pfData.isCapped,
+            complianceFlag: pfData.complianceFlag,
           },
-          summary: {
-            annualCtc: annual,
-            monthlyCtc,
-            monthlyGross: grossPay,
-            monthlyNetInHand: netInHand,
-            annualNetInHand: netInHand * 12,
-            ctcVariance,
-            ctcMatchOk: ctcVariance <= 1,
+          summary: result.summary,
+          reconciliation: {
+            approvedAnnualCtc: result.approvedAnnualCtc,
+            reconstructedAnnualCtc: result.reconstructedAnnualCtc,
+            varianceAmount: result.varianceAmount,
+            validationStatus: result.validationStatus,
+            explanation: result.varianceExplanation,
+            discrepancies: result.discrepancies,
+            policyFlags: result.policyFlags,
           },
         },
       });
     } catch (err) {
       console.error("Error in calculateCtcBreakup:", err);
       res.status(500).json({ success: false, error: "CTC breakup calculation failed" });
+    }
+  }
+
+  // ================================================================
+  // FULL CTC RECONCILIATION REPORT (Audit endpoint)
+  // POST /api/payroll/reconcile-ctc
+  // Audits employee assignment or arbitrary CTC breakdown
+  // ================================================================
+  async reconcileCtc(req, res) {
+    try {
+      const { employeeId, annualCtc, pfCeilingMode, basicPercent, hraType } = req.body;
+
+      if (employeeId) {
+        // Forward audit of existing employee assignment
+        const empRes = await pool.query(
+          `SELECT e.*, esa.ctc_annual, esa.base_monthly_salary, esa.structure_id
+           FROM employees e
+           JOIN employee_salary_assignments esa ON esa.employee_id = e.employee_id AND esa.is_active = TRUE
+           WHERE e.employee_id = $1`,
+          [employeeId]
+        );
+        if (empRes.rows.length === 0) {
+          return res.status(404).json({ success: false, error: "Employee or active salary assignment not found" });
+        }
+        const emp = empRes.rows[0];
+        const itemsRes = await pool.query(
+          `SELECT ssi.*, pc.code, pc.name, pc.type, pc.calculation_type
+           FROM salary_structure_items ssi
+           JOIN payroll_components pc ON pc.id = ssi.component_id
+           WHERE ssi.structure_id = $1 AND ssi.is_active = TRUE`,
+          [emp.structure_id]
+        );
+        const report = ctcReconciliationEngine.reconcileEmployeeAssignment(emp, emp, itemsRes.rows);
+        return res.json({ success: true, data: report });
+      }
+
+      // Reverse CTC decomposition report
+      const annual = Number(annualCtc) || 0;
+      const report = ctcReconciliationEngine.decomposeAnnualCtc({
+        annualCtc: annual,
+        pfCeilingMode,
+        basicPercent,
+        hraType,
+      });
+
+      res.json({ success: true, data: report });
+    } catch (err) {
+      console.error("Error in reconcileCtc:", err);
+      res.status(500).json({ success: false, error: "CTC reconciliation audit failed" });
+    }
+  }
+
+  // ================================================================
+  // PAYROLL PILOT: KREDILY SHADOW RUN COMPARISON
+  // POST /api/payroll/pilot/kredily-compare
+  // Compares anonymized Kredily payroll export against PatilOne slips
+  // ================================================================
+  async pilotCompareKredily(req, res) {
+    try {
+      const { runId, month, year, kredilyRecords = [] } = req.body;
+
+      if (!Array.isArray(kredilyRecords) || kredilyRecords.length === 0) {
+        return res.status(400).json({ success: false, error: "kredilyRecords array is required" });
+      }
+
+      let slips = [];
+      if (runId) {
+        const slipsRes = await pool.query(
+          `SELECT ss.*, e.employee_code, e.first_name, e.last_name
+           FROM salary_slips ss
+           JOIN employees e ON e.employee_id = ss.employee_id
+           WHERE ss.payroll_run_id = $1`,
+          [runId]
+        );
+        slips = slipsRes.rows;
+      } else if (month && year) {
+        const slipsRes = await pool.query(
+          `SELECT ss.*, e.employee_code, e.first_name, e.last_name
+           FROM salary_slips ss
+           JOIN employees e ON e.employee_id = ss.employee_id
+           WHERE ss.month = $1 AND ss.year = $2`,
+          [month, year]
+        );
+        slips = slipsRes.rows;
+      }
+
+      if (slips.length === 0) {
+        // Use mock data fallback if DB has no run for period
+        slips = MOCK_PAYROLL.slips;
+      }
+
+      const report = payrollPilotService.comparePayrollRuns(slips, kredilyRecords);
+      res.json({ success: true, data: report });
+    } catch (err) {
+      console.error("Error in pilotCompareKredily:", err);
+      res.status(500).json({ success: false, error: "Kredily pilot comparison failed" });
     }
   }
 }

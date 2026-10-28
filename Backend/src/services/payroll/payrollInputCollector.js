@@ -35,6 +35,7 @@ class PayrollInputCollector {
         d.name AS department_name,
         e.designation,
         e.doj,
+        e.separation_date,
         e.pan_number,
         e.bank_name,
         e.bank_account_no,
@@ -173,32 +174,60 @@ class PayrollInputCollector {
     }
 
     // 5. Fetch approved expense reimbursements ready for payout
+    // Tax treatment: Split into Non-Taxable (with valid receipt documentation) vs Taxable (unvouchered/perquisite)
     const expenseRes = await pool.query(
       `SELECT 
+         id,
          employee_id,
-         COALESCE(SUM(amount), 0) AS total_reimbursement,
-         COUNT(id) AS claim_count
+         category,
+         amount,
+         receipt_url,
+         expense_date
        FROM expense_claims
        WHERE status = 'Approved'
          AND reimbursement_status IN ('Unpaid', 'Processing')
-         AND expense_date <= $1
-       GROUP BY employee_id`,
+         AND expense_date <= $1`,
       [endDate]
     );
 
     const expenseByEmp = {};
     for (const exp of expenseRes.rows) {
-      expenseByEmp[exp.employee_id] = {
-        totalReimbursement: Number(exp.total_reimbursement) || 0,
-        claimCount: Number(exp.claim_count) || 0,
-      };
+      if (!expenseByEmp[exp.employee_id]) {
+        expenseByEmp[exp.employee_id] = {
+          totalReimbursement: 0,
+          nonTaxableReimbursement: 0,
+          taxableReimbursement: 0,
+          claimCount: 0,
+          claims: [],
+        };
+      }
+      const amt = Number(exp.amount) || 0;
+      const hasReceipt = Boolean(exp.receipt_url && exp.receipt_url.trim().length > 0);
+      // Official categories with receipts are exempt under Section 10(14)
+      const isExemptCategory = ["Travel", "Accommodation", "Equipment", "Client Entertainment", "Meals"].includes(exp.category);
+      const isTaxable = !hasReceipt || !isExemptCategory;
+
+      expenseByEmp[exp.employee_id].totalReimbursement += amt;
+      expenseByEmp[exp.employee_id].claimCount += 1;
+      expenseByEmp[exp.employee_id].claims.push({ id: exp.id, amount: amt, isTaxable });
+
+      if (isTaxable) {
+        expenseByEmp[exp.employee_id].taxableReimbursement += amt;
+      } else {
+        expenseByEmp[exp.employee_id].nonTaxableReimbursement += amt;
+      }
     }
 
     // Combine all inputs per employee
     const employeePackets = employees.map((emp) => {
       const leaveInfo = leavesByEmp[emp.employee_id] || { paidDays: 0, lwpDays: 0, leaves: [] };
       const tsInfo = timesheetByEmp[emp.employee_id] || { totalHours: 0, billableHours: 0, entries: 0 };
-      const expInfo = expenseByEmp[emp.employee_id] || { totalReimbursement: 0, claimCount: 0 };
+      const expInfo = expenseByEmp[emp.employee_id] || {
+        totalReimbursement: 0,
+        nonTaxableReimbursement: 0,
+        taxableReimbursement: 0,
+        claimCount: 0,
+      };
       const structureItems = structureItemsMap[emp.structure_id] || [];
 
       return {
@@ -220,7 +249,9 @@ class PayrollInputCollector {
           billableHours: tsInfo.billableHours,
           timesheetDays: tsInfo.timesheetDays,
         },
-        reimbursements: expInfo.totalReimbursement,
+        reimbursements: expInfo.nonTaxableReimbursement,
+        taxableReimbursements: expInfo.taxableReimbursement,
+        totalReimbursements: expInfo.totalReimbursement,
         claimCount: expInfo.claimCount,
       };
     });

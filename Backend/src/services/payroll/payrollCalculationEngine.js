@@ -94,33 +94,108 @@ class PayrollCalculationEngine {
    * Calculate single employee's monthly salary slip
    *
    * @param {Object} params
-   * @param {Object} params.employee Employee object (id, code, name, gender, tax_regime)
+   * @param {Object} params.employee Employee object (id, code, name, gender, tax_regime, doj, separation_date)
    * @param {Object} params.assignment Employee salary assignment (base_monthly_salary, ctc_annual)
    * @param {Array}  params.structureItems Components linked to salary structure
-   * @param {Number} params.totalWorkingDays Calendar / standard working days in month (e.g. 30 or 31)
-   * @param {Number} params.lwpDays Unpaid leave / Loss of Pay days
-   * @param {Number} params.reimbursements Approved reimbursement amount from expense claims
-   * @param {Number} params.month Payroll month (1-12)
-   * @param {Number} params.year Payroll year (e.g. 2026)
+   * @param {Number} [params.totalWorkingDays=30] Calendar days in month (e.g. 30 or 31)
+   * @param {String} [params.prorationBasis='CALENDAR_DAYS'] 'CALENDAR_DAYS' | 'SCHEDULED_WORKING_DAYS'
+   * @param {Number} [params.scheduledWorkingDays] Days excluding weekly offs & holidays (e.g. 22 or 26)
+   * @param {Boolean} [params.isHourly=false] If true, prorates by timesheet hours vs standard hours
+   * @param {Number} [params.standardMonthlyHours=160] Standard target hours for hourly compensation
+   * @param {Number} [params.lwpDays=0] Unpaid leave / Loss of Pay days
+   * @param {Number} [params.reimbursements=0] Non-taxable approved business expense claims
+   * @param {Number} [params.taxableReimbursements=0] Taxable expense reimbursements (no receipt / taxable perquisite)
+   * @param {Number} [params.month=1] Payroll month (1-12)
+   * @param {Number} [params.year=2026] Payroll year (e.g. 2026)
+   * @param {String} [params.joinDate] ISO date string if employee joined mid-month
+   * @param {String} [params.exitDate] ISO date string if employee left mid-month
    */
   calculateSalarySlip({
     employee,
     assignment,
     structureItems = [],
     totalWorkingDays = 30,
+    prorationBasis = "CALENDAR_DAYS",
+    scheduledWorkingDays = null,
+    isHourly = false,
+    standardMonthlyHours = 160,
     lwpDays = 0,
     timesheetHours = 0,
     timesheetDays = 0,
     reimbursements = 0,
+    taxableReimbursements = 0,
     month = 1,
     year = 2026,
     additionalEarnings = [],
     additionalDeductions = [],
+    joinDate = null,
+    exitDate = null,
   }) {
-    const workingDays = Math.max(1, Number(totalWorkingDays) || 30);
-    const lwp = Math.min(workingDays, Math.max(0, Number(lwpDays) || 0));
-    const paymentDays = Math.max(0, workingDays - lwp);
-    const prorationFactor = workingDays > 0 ? (paymentDays / workingDays) : 1;
+    const calendarDays = Math.max(1, Number(totalWorkingDays) || 30);
+    const denominatorDays = prorationBasis === "SCHEDULED_WORKING_DAYS" && scheduledWorkingDays
+      ? Math.max(1, Number(scheduledWorkingDays))
+      : calendarDays;
+
+    // ── Mid-month joiner / leaver proration ─────────────────────────────
+    let eligibleDays = calendarDays; // default: full month
+    const periodStart = new Date(year, month - 1, 1);
+    const periodEnd   = new Date(year, month - 1, calendarDays);
+
+    const resolvedJoinDate = joinDate || employee?.doj;
+    if (resolvedJoinDate) {
+      const jDate = new Date(resolvedJoinDate);
+      if (!isNaN(jDate) && jDate > periodStart) {
+        const joinDay = Math.min(jDate.getDate(), calendarDays);
+        eligibleDays = Math.min(eligibleDays, calendarDays - joinDay + 1);
+      }
+    }
+
+    const resolvedExitDate = exitDate || employee?.separation_date;
+    if (resolvedExitDate) {
+      const eDate = new Date(resolvedExitDate);
+      if (!isNaN(eDate) && eDate < periodEnd) {
+        const exitDay = Math.max(eDate.getDate(), 1);
+        eligibleDays = Math.min(eligibleDays, exitDay);
+      }
+    }
+
+    eligibleDays = Math.max(0, Math.min(eligibleDays, calendarDays));
+
+    const workingDays = denominatorDays;
+    const lwp = Math.min(eligibleDays, Math.max(0, Number(lwpDays) || 0));
+    const paymentDays = Math.max(0, eligibleDays - lwp);
+
+    // Proration factor: Salaried vs Hourly
+    let prorationFactor;
+    if (isHourly) {
+      // For hourly policy: compensation strictly tracks timesheet hours against target
+      const loggedHours = Math.max(0, Number(timesheetHours) || 0);
+      const targetHours = Math.max(1, Number(standardMonthlyHours) || 160);
+      prorationFactor = loggedHours / targetHours;
+    } else {
+      // For salaried policy: project timesheet hours do NOT automatically deduct pay.
+      // Pay is based purely on calendar/working days minus approved LOP.
+      prorationFactor = workingDays > 0 ? (paymentDays / workingDays) : 1;
+    }
+
+    // Build proration note for transparency
+    const prorationNote = (() => {
+      const parts = [];
+      if (isHourly) {
+        parts.push(`Hourly policy: ${Number(timesheetHours) || 0}/${standardMonthlyHours} hrs`);
+      } else {
+        if (eligibleDays < calendarDays) {
+          if (resolvedJoinDate && new Date(resolvedJoinDate) > periodStart) {
+            parts.push(`Joined ${new Date(resolvedJoinDate).getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1]}`);
+          }
+          if (resolvedExitDate && new Date(resolvedExitDate) < periodEnd) {
+            parts.push(`Last day ${new Date(resolvedExitDate).getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1]}`);
+          }
+        }
+        if (lwp > 0) parts.push(`${lwp} LOP day(s)`);
+      }
+      return parts.length > 0 ? parts.join(", ") : "Full attendance";
+    })();
 
     const baseMonthlySalary = Number(assignment?.base_monthly_salary) || 0;
     const ctcAnnual = Number(assignment?.ctc_annual) || (baseMonthlySalary * 12 * 2);
@@ -143,7 +218,7 @@ class PayrollCalculationEngine {
       amount: proratedBasic,
       dependsOnPaymentDays: true,
       isStatutory: false,
-      notes: lwp > 0 ? `Pro-rated for ${paymentDays}/${workingDays} days (${lwp} LOP)` : "Full attendance",
+      notes: `Pro-rated ${paymentDays}/${workingDays} days — ${prorationNote}`,
     });
 
     // Process other earnings defined in structure
@@ -175,18 +250,35 @@ class PayrollCalculationEngine {
       });
     }
 
-    // Add Approved Expense Reimbursements if any
-    const reimbursementAmt = Math.max(0, Number(reimbursements) || 0);
-    if (reimbursementAmt > 0) {
+    // Add Non-Taxable Approved Expense Reimbursements (Sec 10(14) compliant with receipts)
+    const nonTaxReimbAmt = Math.max(0, Number(reimbursements) || 0);
+    if (nonTaxReimbAmt > 0) {
       earningsItems.push({
         componentCode: "EXPENSE_REIMBURSEMENT",
-        componentName: "Approved Expense Reimbursements",
+        componentName: "Approved Expense Reimbursements (Non-Taxable)",
         type: "EARNING",
-        unproratedAmount: reimbursementAmt,
-        amount: reimbursementAmt,
+        unproratedAmount: nonTaxReimbAmt,
+        amount: nonTaxReimbAmt,
         dependsOnPaymentDays: false,
+        isTaxApplicable: false,
         isStatutory: false,
-        notes: "Approved corporate expense claims",
+        notes: "Approved official business expenses with verified receipts (Sec 10(14) exempt)",
+      });
+    }
+
+    // Add Taxable Reimbursements / Allowances (unvouchered or personal per diem)
+    const taxReimbAmt = Math.max(0, Number(taxableReimbursements) || 0);
+    if (taxReimbAmt > 0) {
+      earningsItems.push({
+        componentCode: "TAXABLE_REIMBURSEMENT",
+        componentName: "Taxable Reimbursements / Perquisites",
+        type: "EARNING",
+        unproratedAmount: taxReimbAmt,
+        amount: taxReimbAmt,
+        dependsOnPaymentDays: false,
+        isTaxApplicable: true,
+        isStatutory: false,
+        notes: "Reimbursements without supporting bills / taxable perquisites",
       });
     }
 
@@ -201,14 +293,23 @@ class PayrollCalculationEngine {
           unproratedAmount: amt,
           amount: amt,
           dependsOnPaymentDays: false,
+          isTaxApplicable: addEarning.isTaxApplicable !== false,
           isStatutory: false,
           notes: addEarning.notes || "Approved adjustment",
         });
       }
     }
 
-    // Total Gross Pay
+    // Total Gross Pay (includes all earnings and reimbursements payable to employee)
     const grossPay = earningsItems.reduce((sum, item) => sum + item.amount, 0);
+
+    // Taxable Gross (excludes non-taxable business expense reimbursements)
+    const taxableGrossPay = earningsItems
+      .filter((i) => i.isTaxApplicable !== false && i.componentCode !== "EXPENSE_REIMBURSEMENT")
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    // Statutory Wage for ESIC & PT excludes non-taxable business reimbursements
+    const statutoryGrossPay = taxableGrossPay;
 
     // 2. Calculate Deductions (Statutory & Voluntary)
     // EPF Employee Contribution (supporting ₹15k, ₹25k, or Actual ceiling)
@@ -225,8 +326,8 @@ class PayrollCalculationEngine {
       });
     }
 
-    // ESIC Employee Contribution (if gross <= 21,000)
-    const esicBreakdown = statutoryRulesService.calculateESIC(grossPay);
+    // ESIC Employee Contribution (based on statutory gross, excluding non-taxable expense reimbursements)
+    const esicBreakdown = statutoryRulesService.calculateESIC(statutoryGrossPay);
     if (esicBreakdown.eligible) {
       deductionItems.push({
         componentCode: "ESIC_EMPLOYEE",
@@ -234,13 +335,13 @@ class PayrollCalculationEngine {
         type: "DEDUCTION",
         amount: esicBreakdown.employeeESIC,
         isStatutory: true,
-        notes: `0.75% of Gross Pay (₹${grossPay.toLocaleString("en-IN")})`,
+        notes: `0.75% of Gross Pay (₹${statutoryGrossPay.toLocaleString("en-IN")})`,
       });
     }
 
     // Maharashtra Professional Tax (PT)
     const gender = employee.gender || "Male";
-    const ptBreakdown = statutoryRulesService.calculateProfessionalTax(grossPay, gender, month);
+    const ptBreakdown = statutoryRulesService.calculateProfessionalTax(statutoryGrossPay, gender, month);
     if (ptBreakdown.ptAmount > 0) {
       deductionItems.push({
         componentCode: "PT_MAHARASHTRA",
@@ -253,8 +354,8 @@ class PayrollCalculationEngine {
     }
 
     // Income Tax TDS (Section 192)
-    // Approximate annual projection based on gross pay and CTC
-    const annualEstimatedGross = Math.max(ctcAnnual, grossPay * 12);
+    // Annual taxable projection based on taxable earnings only (never inflates tax with travel reimbursements)
+    const annualEstimatedGross = Math.max(ctcAnnual, taxableGrossPay * 12);
     const regime = employee.tax_regime || "New";
     const tdsBreakdown = statutoryRulesService.calculateTDS(annualEstimatedGross, regime);
     if (tdsBreakdown.monthlyTDS > 0) {

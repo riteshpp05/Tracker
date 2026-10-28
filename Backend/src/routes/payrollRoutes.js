@@ -38,9 +38,10 @@ router.post("/runs/draft", authorizeRoles(["ADMIN", "HR"]), payrollController.ca
 router.get("/runs", authorizeRoles(["ADMIN", "HR"]), payrollController.getPayrollRuns);
 router.get("/runs/:id", authorizeRoles(["ADMIN", "HR"]), payrollController.getPayrollRunById);
 
-// 4. Workflow State Transitions (Submit, Approve, Finalize, Pay)
+// 4. Workflow State Transitions (Submit, Approve, Reject, Finalize, Pay)
 router.post("/runs/:id/submit", authorizeRoles(["ADMIN", "HR"]), payrollController.submitPayrollRun);
 router.post("/runs/:id/approve", authorizeRoles(["ADMIN", "HR"]), payrollController.approvePayrollRun);
+router.post("/runs/:id/reject", authorizeRoles(["ADMIN", "HR"]), payrollController.rejectPayrollRun);
 router.post("/runs/:id/finalize", authorizeRoles(["ADMIN"]), payrollController.finalizePayrollRun);
 router.post("/runs/:id/record-payment", authorizeRoles(["ADMIN", "HR"]), payrollController.recordPayment);
 
@@ -48,7 +49,11 @@ router.post("/runs/:id/record-payment", authorizeRoles(["ADMIN", "HR"]), payroll
 router.get("/runs/:id/bank-export", authorizeRoles(["ADMIN", "HR"]), payrollController.exportBankPaymentFile);
 router.get("/reports/statutory", authorizeRoles(["ADMIN", "HR"]), payrollController.getStatutoryReports);
 
-// 6. CTC Breakup Calculator — Zero-mismatch reverse engine (no DB required)
+// 6. CTC Breakup Calculator & Reconciliation Engine
 router.post("/calculate-ctc-breakup", authorizeRoles(["ADMIN", "HR"]), payrollController.calculateCtcBreakup.bind(payrollController));
+router.post("/reconcile-ctc", authorizeRoles(["ADMIN", "HR"]), payrollController.reconcileCtc.bind(payrollController));
+
+// 7. Payroll Pilot & Parallel Testing (Kredily Comparison Engine)
+router.post("/pilot/kredily-compare", authorizeRoles(["ADMIN", "HR"]), payrollController.pilotCompareKredily.bind(payrollController));
 
 export default router;

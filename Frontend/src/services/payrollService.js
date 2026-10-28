@@ -55,6 +55,11 @@ export const payrollService = {
     return res.data;
   },
 
+  async rejectPayrollRun(id, rejectionReason) {
+    const res = await api.post(`/payroll/runs/${id}/reject`, { rejectionReason });
+    return res.data;
+  },
+
   async submitPayrollRun(id) {
     const res = await api.post(`/payroll/runs/${id}/submit`);
     return res.data;
@@ -100,9 +105,20 @@ export const payrollService = {
     return res.data;
   },
 
-  // 6. CTC Breakup Calculator — Zero-mismatch reverse engine
+  // 6. CTC Breakup Calculator & Reconciliation Engine
   async calculateCtcBreakup(params) {
     const res = await api.post("/payroll/calculate-ctc-breakup", params);
+    return res.data;
+  },
+
+  async reconcileCtc(params) {
+    const res = await api.post("/payroll/reconcile-ctc", params);
+    return res.data;
+  },
+
+  // 7. Payroll Pilot Comparison (Kredily Shadow Run)
+  async pilotCompareKredily(data) {
+    const res = await api.post("/payroll/pilot/kredily-compare", data);
     return res.data;
   },
 

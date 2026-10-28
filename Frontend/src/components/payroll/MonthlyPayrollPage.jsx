@@ -133,6 +133,24 @@ export const MonthlyPayrollPage = () => {
     }
   };
 
+  const handleReject = async () => {
+    if (!runData?.run?.id) return;
+    const reason = window.prompt("Enter rejection reason for submitter to correct:");
+    if (!reason || !reason.trim()) return;
+    setLoading(true);
+    try {
+      await payrollService.rejectPayrollRun(runData.run.id, reason.trim());
+      toast.success("Payroll run rejected. Submitter can now make corrections and re-submit.");
+      const detailRes = await payrollService.getPayrollRunById(runData.run.id);
+      setRunData(detailRes.data);
+      setCurrentStep(3);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Rejection failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFinalize = async () => {
     if (!runData?.run?.id) return;
     if (!window.confirm("Finalizing will permanently LOCK this payroll period and publish salary slips. Confirm?")) {
@@ -402,14 +420,14 @@ export const MonthlyPayrollPage = () => {
 
               {/* Action Buttons for Current Status */}
               <div className="flex items-center gap-2">
-                {runData.run.status === "DRAFT" && (
+                {(runData.run.status === "DRAFT" || runData.run.status === "REJECTED") && (
                   <button
                     onClick={handleSubmitApproval}
                     disabled={loading}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#111827] hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Submit for Approval</span>
+                    <span>{runData.run.status === "REJECTED" ? "Re-submit for Approval" : "Submit for Approval"}</span>
                   </button>
                 )}
 
@@ -428,6 +446,13 @@ export const MonthlyPayrollPage = () => {
                       className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
                     >
                       Approve Run
+                    </button>
+                    <button
+                      onClick={handleReject}
+                      disabled={loading}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+                    >
+                      Reject
                     </button>
                   </div>
                 )}
