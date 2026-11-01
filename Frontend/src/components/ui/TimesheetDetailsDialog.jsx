@@ -21,11 +21,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   Table,
   TableBody,
   TableCell,
@@ -35,7 +30,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { minutesToHHMM } from "@/utils/timeUtils";
 
@@ -258,58 +252,58 @@ function DailyGroup({ dateKey, entries }) {
   }, [entries]);
 
   return (
-    <Collapsible
-      open={isOpen}
-      onOpenChange={setIsOpen}
+    <div
       className="border border-border/60 bg-card rounded-xl shadow-sm overflow-hidden group transition-all hover:shadow-md"
     >
-      <CollapsibleTrigger asChild>
-        <div className="flex items-center justify-between p-3 px-4 cursor-pointer hover:bg-accent/40 transition-colors select-none">
-          <div className="flex items-center gap-4">
-            <div
+      <div
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center justify-between p-3 px-4 cursor-pointer hover:bg-accent/40 transition-colors select-none"
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className={cn(
+              "h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground transition-all group-hover:bg-primary/10 group-hover:text-primary",
+              isOpen && "bg-primary/10 text-primary",
+            )}
+          >
+            <ChevronRight
               className={cn(
-                "h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground transition-all group-hover:bg-primary/10 group-hover:text-primary",
-                isOpen && "bg-primary/10 text-primary",
+                "h-5 w-5 transition-transform duration-200",
+                isOpen && "rotate-90",
               )}
-            >
-              <ChevronRight
-                className={cn(
-                  "h-5 w-5 transition-transform duration-200",
-                  isOpen && "rotate-90",
-                )}
-              />
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-base text-foreground">
-                {format(dateObj, "EEEE, MMM d")}
-              </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {entries.length} {entries.length === 1 ? "Entry" : "Entries"}
-              </p>
-            </div>
+            />
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground hidden sm:flex items-center gap-1.5 bg-muted/30 px-2.5 py-1.5 rounded-md">
-              <span className="text-emerald-600 font-medium">
-                {minutesToHHMM(dailyStats.totalBillable)}
-              </span>
-              <span className="text-muted-foreground/30">/</span>
-              <span className="text-orange-600 font-medium">
-                {minutesToHHMM(dailyStats.totalNonBillable)}
-              </span>
-            </div>
-            <Badge variant="secondary" className="text-lg font-bold px-3 py-1">
-              {minutesToHHMM(dailyStats.totalHours)}hrs
-            </Badge>
+          <div>
+            <h4 className="font-semibold text-base text-foreground">
+              {format(dateObj, "EEEE, MMM d")}
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {entries.length} {entries.length === 1 ? "Entry" : "Entries"}
+            </p>
           </div>
         </div>
-      </CollapsibleTrigger>
 
-      <CollapsibleContent>
-        <Separator className="opacity-50" />
-        <div className="bg-muted/5">
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground hidden sm:flex items-center gap-1.5 bg-muted/30 px-2.5 py-1.5 rounded-md">
+            <span className="text-emerald-600 font-medium">
+              {minutesToHHMM(dailyStats.totalBillable)}
+            </span>
+            <span className="text-muted-foreground/30">/</span>
+            <span className="text-orange-600 font-medium">
+              {minutesToHHMM(dailyStats.totalNonBillable)}
+            </span>
+          </div>
+          <Badge variant="secondary" className="text-lg font-bold px-3 py-1">
+            {minutesToHHMM(dailyStats.totalHours)}hrs
+          </Badge>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div>
+          <Separator className="opacity-50" />
+          <div className="bg-muted/5">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border/50">
@@ -468,9 +462,10 @@ function DailyGroup({ dateKey, entries }) {
                 ))}
             </div>
           )}
+          </div>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      )}
+    </div>
   );
 }
 
@@ -638,7 +633,7 @@ export function TimesheetDetailsDialog({
         </div>
 
         {/* ── Scrollable entry list ──────────────────────────────────────────── */}
-        <ScrollArea className="flex-1 h-full bg-muted/5">
+        <div className="flex-1 h-full overflow-y-auto bg-muted/5">
           <div className="p-6 space-y-3 max-w-4xl mx-auto">
             {!hasEntries ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground opacity-50">
@@ -652,7 +647,7 @@ export function TimesheetDetailsDialog({
             )}
             <div className="h-8" />
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
