@@ -151,33 +151,6 @@ export async function createPolicy(data, userId) {
 
   const code = String(data.code).toUpperCase();
 
-  const insertSQL = `
-    INSERT INTO payroll_location_policies (
-      name, code, description, state_code,
-      basic_calculation_mode, basic_percent_of_net, basic_percent_of_ctc,
-      da_fixed_amount, hra_percent_of_basic_da,
-      washing_allowance, education_allowance, conveyance_allowance,
-      medical_allowance, books_periodicals,
-      pf_ceiling_mode, employee_pf_rate, employer_pf_rate,
-      bonus_rate, gratuity_rate,
-      default_assessment_year, default_tax_regime,
-      esic_employer_rate, esic_employee_rate,
-      is_active, created_by
-    ) VALUES (
-      $1, $2, $3, $4,
-      $5, $6, $7,
-      $8, $9,
-      $10, $11, $12,
-      $13, $14,
-      $15, $16, $17,
-      $18, $19,
-      $20, $21,
-      $22, $23,
-      TRUE, $24
-    )
-    RETURNING *
-  `;
-
   const values = [
     data.name, code, data.description || null, data.state_code || 'MH',
     data.basic_calculation_mode || 'PERCENT_OF_NET',
@@ -199,8 +172,39 @@ export async function createPolicy(data, userId) {
     data.default_tax_regime     || 'NEW',
     data.esic_employer_rate !== undefined ? Number(data.esic_employer_rate) : 0.0325,
     data.esic_employee_rate !== undefined ? Number(data.esic_employee_rate) : 0.0075,
+    data.pt_slabs_override_json ? JSON.stringify(data.pt_slabs_override_json) : null,
+    data.working_days_mode || 'CALENDAR_DAYS',
     userId || null,
   ];
+
+  const insertSQL = `
+    INSERT INTO payroll_location_policies (
+      name, code, description, state_code,
+      basic_calculation_mode, basic_percent_of_net, basic_percent_of_ctc,
+      da_fixed_amount, hra_percent_of_basic_da,
+      washing_allowance, education_allowance, conveyance_allowance,
+      medical_allowance, books_periodicals,
+      pf_ceiling_mode, employee_pf_rate, employer_pf_rate,
+      bonus_rate, gratuity_rate,
+      default_assessment_year, default_tax_regime,
+      esic_employer_rate, esic_employee_rate,
+      pt_slabs_override_json, working_days_mode,
+      is_active, created_by
+    ) VALUES (
+      $1, $2, $3, $4,
+      $5, $6, $7,
+      $8, $9,
+      $10, $11, $12,
+      $13, $14,
+      $15, $16, $17,
+      $18, $19,
+      $20, $21,
+      $22, $23,
+      $24, $25,
+      TRUE, $26
+    )
+    RETURNING *
+  `;
 
   const result = await db.query(insertSQL, values);
   const created = result.rows[0];
@@ -243,6 +247,7 @@ export async function updatePolicy(id, data, userId) {
     'bonus_rate', 'gratuity_rate',
     'default_assessment_year', 'default_tax_regime',
     'esic_employer_rate', 'esic_employee_rate',
+    'pt_slabs_override_json', 'working_days_mode',
   ];
 
   const setClauses = [];

@@ -1,5 +1,6 @@
 // Frontend/src/components/enterprise/CompanyHolidaysPage.jsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -11,12 +12,15 @@ import {
   X,
   Flag,
   Sun,
-  ShieldCheck
+  ShieldCheck,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import enterpriseService from "../../services/enterpriseService";
 import { toast } from "sonner";
 
 export const CompanyHolidaysPage = () => {
+  const navigate = useNavigate();
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedType, setSelectedType] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -128,12 +132,33 @@ export const CompanyHolidaysPage = () => {
           </select>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#6558D9] hover:bg-[#5245c4] text-white text-sm font-semibold rounded-lg shadow-sm transition"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#6558D9] hover:bg-[#5245c4] text-white text-sm font-semibold rounded-lg shadow-sm transition cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            Add Holiday
+            <Plus className="w-4 h-4" /> Add Holiday
           </button>
         </div>
+      </div>
+
+      {/* Cross-Module Payroll Synchronization Banner */}
+      <div className="bg-indigo-50 border border-indigo-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider">Payroll Attendance Synchronization</h4>
+            <p className="text-xs text-indigo-700 mt-0.5">
+              Holiday modifications automatically impact monthly payable days and LOP calculations for open runs.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate("/admin/payroll/process")}
+          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-2xs transition-colors cursor-pointer whitespace-nowrap"
+        >
+          <span>Recalculate Open Draft Payroll Run</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* KPI Cards */}

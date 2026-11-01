@@ -459,6 +459,37 @@ class StatutoryRulesService {
   }
 
   /**
+   * Evaluate custom PT slabs configured directly by HR in Location Policy.
+   * @param {number} grossPay
+   * @param {Array<{min: number, max: number|null, amount: number, febAmount?: number}>} customSlabs
+   * @param {number} month
+   * @returns {{ ptAmount: number, stateCode: string, slab: string }}
+   */
+  calculateCustomPT(grossPay, customSlabs = [], month = 1) {
+    const gross = Math.max(0, Number(grossPay) || 0);
+    const isFeb = Number(month) === 2;
+
+    if (!Array.isArray(customSlabs) || customSlabs.length === 0) {
+      return { ptAmount: 0, stateCode: "CUSTOM", slab: "Custom PT: No slabs configured" };
+    }
+
+    for (const slab of customSlabs) {
+      const min = Number(slab.min) || 0;
+      const max = slab.max !== null && slab.max !== undefined && slab.max !== "" ? Number(slab.max) : Infinity;
+      if (gross >= min && gross <= max) {
+        const amt = isFeb && slab.febAmount !== undefined ? Number(slab.febAmount) : Number(slab.amount) || 0;
+        return {
+          ptAmount: amt,
+          stateCode: "CUSTOM",
+          slab: `Custom Slab ₹${min}–${max === Infinity ? "above" : max} → ₹${amt}/mo`,
+        };
+      }
+    }
+
+    return { ptAmount: 0, stateCode: "CUSTOM", slab: "Custom PT: Outside configured slabs" };
+  }
+
+  /**
    * Income Tax Withholding (TDS under Section 192) — Multi-Year New Tax Regime
    *
    * Supports:

@@ -415,6 +415,11 @@ class CtcReconciliationEngine {
       pfCeiling = 15000;
     } else if (pfCeilingMode === "25000") {
       pfCeiling = 25000;
+      validations.push({
+        tier: "INFO",
+        code: "INTERNAL_CAP_25K_ADVISORY",
+        message: "₹25,000 PF wage ceiling is an internal organizational cap, not an official statutory ceiling (Statutory cap is ₹15,000).",
+      });
     } else {
       pfCeiling = Infinity; // ACTUAL mode: no ceiling
     }
@@ -424,11 +429,27 @@ class CtcReconciliationEngine {
     const empPFRate  = Math.max(0, Number(policy.employee_pf_rate) || 0.12);
     const employeePF = this.round(pfWage * empPFRate);
 
-    // ── 8. Professional Tax ─────────────────────────────────────────────────
-    const stateCode   = String(policy.state_code || "MH").toUpperCase();
-    const ptBase      = useGrossForPt ? this.round(net + employeePF) : net;
-    const ptResult    = statutoryRulesService.calculateMultiStatePT(ptBase, stateCode, gender, month);
-    const pt          = ptResult.ptAmount;
+    // ── 8. Professional Tax (with 2-Pass Convergence Check) ─────────────────
+    const stateCode = String(policy.state_code || "MH").toUpperCase();
+    let ptResult;
+
+    if (policy.pt_slabs_override_json && Array.isArray(policy.pt_slabs_override_json) && policy.pt_slabs_override_json.length > 0) {
+      ptResult = statutoryRulesService.calculateCustomPT(useGrossForPt ? (net + employeePF) : net, policy.pt_slabs_override_json, month);
+    } else {
+      // Pass 1: Initial estimate using net (or net+PF)
+      const ptBase = useGrossForPt ? this.round(net + employeePF) : net;
+      ptResult = statutoryRulesService.calculateMultiStatePT(ptBase, stateCode, gender, month);
+
+      // Pass 2: When useGrossForPt is active, run convergence check against provisional gross
+      if (useGrossForPt) {
+        const provisionalGross = this.round(net + employeePF + ptResult.ptAmount);
+        const recheckedPt = statutoryRulesService.calculateMultiStatePT(provisionalGross, stateCode, gender, month);
+        if (recheckedPt.ptAmount !== ptResult.ptAmount) {
+          ptResult = recheckedPt;
+        }
+      }
+    }
+    const pt = ptResult.ptAmount;
 
     // ── 9. Gross Salary ─────────────────────────────────────────────────────
     const grossSalary = this.round(net + employeePF + pt);

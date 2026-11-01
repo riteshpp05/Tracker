@@ -101,6 +101,59 @@ export const BulkImportPage = () => {
     }
   };
 
+  const handleGenerate300SampleEmployees = async () => {
+    setPreviewLoading(true);
+    setImportResult(null);
+    try {
+      const firstNames = ["Rajesh", "Pooja", "Amit", "Sneha", "Vikas", "Anjali", "Suresh", "Kavita", "Ramesh", "Deepa", "Manoj", "Sunita", "Rahul", "Meera", "Ajay"];
+      const lastNames  = ["Patil", "Shende", "Sharma", "Jadhav", "Kulkarni", "Deshmukh", "Chavan", "Pawar", "Shinde", "More", "Gaikwad", "Bhosale", "Wagh", "Sawant", "Kale"];
+      const roles      = ["Operator", "Technician", "Quality Inspector", "Assembly Specialist", "Senior Engineer", "Plant Supervisor", "Maintenance Lead", "Logistics Executive"];
+      const depts      = ["Production", "Quality", "Maintenance", "Assembly", "Logistics", "Operations"];
+      const policies   = ["BRANCH-01", "BRANCH-02", "BRANCH-03"];
+
+      const rows = [];
+      const headers = [
+        "employee_code", "first_name", "last_name", "location_code",
+        "designation", "department", "joining_date",
+        "target_net_salary", "target_annual_ctc",
+        "bank_name", "bank_account", "ifsc", "pan", "uan", "gender"
+      ];
+
+      for (let i = 1; i <= 300; i++) {
+        const empCode = `EMP${String(1000 + i)}`;
+        const fn = firstNames[i % firstNames.length];
+        const ln = lastNames[i % lastNames.length];
+        const policy = policies[i % policies.length];
+        const desig = roles[i % roles.length];
+        const dept = depts[i % depts.length];
+        const netSal = 22000 + ((i * 350) % 75000);
+        const pan = `ABCDE${String(1000 + i).slice(-4)}Z`;
+        const uan = `10123456${String(1000 + i).padStart(4, "0")}`;
+        const ifsc = "HDFC0001234";
+        const acc = `50100${String(10000000 + i)}`;
+        const gender = i % 3 === 0 ? "Female" : "Male";
+
+        rows.push([
+          empCode, fn, ln, policy,
+          desig, dept, "2024-01-15",
+          String(netSal), String(netSal * 15),
+          "HDFC Bank", acc, ifsc, pan, uan, gender
+        ].join(","));
+      }
+
+      const csvContent = headers.join(",") + "\n" + rows.join("\n");
+      const buffer = new TextEncoder().encode(csvContent);
+      const res = await payrollService.previewBulkImport(buffer);
+      setPreviewData(res);
+      setFile({ name: "synthetic_300_workforce_stress_test.csv" });
+      toast.success("Generated 300 realistic employee records for stress testing!");
+    } catch (err) {
+      toast.error("Failed to generate test workforce");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const filteredStaged = stagedRecords.filter((r) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -131,6 +184,14 @@ export const BulkImportPage = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleGenerate300SampleEmployees}
+            disabled={previewLoading || importing}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-2xs cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${previewLoading ? "animate-spin" : ""}`} />
+            Generate 300 Sample Records (Stress Test)
+          </button>
           <button
             onClick={handleDownloadTemplate}
             className="flex items-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"

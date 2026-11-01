@@ -58,6 +58,7 @@ import EmployeePayslipsPage from "./components/payroll/EmployeePayslipsPage";
 import LocationPoliciesPage from "./components/payroll/LocationPoliciesPage";
 import CtcMatchingSimulatorPage from "./components/payroll/CtcMatchingSimulatorPage";
 import BulkImportPage from "./components/payroll/BulkImportPage";
+import KredilyPilotPage from "./components/payroll/KredilyPilotPage";
 
 // Cloudstine Enterprise Suite Components
 import AttendanceDashboard from "./components/attendance/AttendanceDashboard";
@@ -585,6 +586,22 @@ export function AppRoutes() {
           element={
             <ProtectedRoute roles={["ADMIN", "HR"]}>
               <BulkImportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/kredily-pilot"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <KredilyPilotPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll/kredily-pilot"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <KredilyPilotPage />
             </ProtectedRoute>
           }
         />

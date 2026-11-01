@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   Sliders,
   Upload,
+  GitCompare,
 } from "lucide-react";
 
 const BRAND_NAV = "#111827"; // SIPL Brand navy
@@ -138,6 +139,7 @@ export const Layout = ({ children }) => {
           { name: "Location Policies", href: "/admin/payroll/locations", icon: Sliders },
           { name: "CTC Simulator", href: "/admin/payroll/ctc-simulator", icon: Calculator },
           { name: "Bulk Import", href: "/admin/payroll/bulk-import", icon: Upload },
+          { name: "Kredily Pilot", href: "/admin/payroll/kredily-pilot", icon: GitCompare },
         ],
       },
       {
@@ -185,6 +187,7 @@ export const Layout = ({ children }) => {
           { name: "Location Policies", href: "/admin/payroll/locations", icon: Sliders },
           { name: "CTC Simulator", href: "/admin/payroll/ctc-simulator", icon: Calculator },
           { name: "Bulk Import", href: "/admin/payroll/bulk-import", icon: Upload },
+          { name: "Kredily Pilot", href: "/admin/payroll/kredily-pilot", icon: GitCompare },
         ],
       },
       {
