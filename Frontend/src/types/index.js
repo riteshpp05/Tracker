@@ -1,66 +1,85 @@
-// User roles
+/**
+ * @file Frontend Domain Types & Constants
+ * Unified domain models and enumeration types for Shende Industries Enterprise Platform.
+ */
+
+/**
+ * Primary user operational personas
+ */
 export const UserRoles = {
   ADMIN: "ADMIN",
+  HR: "HR",
   MANAGER: "MANAGER",
   EMPLOYEE: "EMPLOYEE",
 };
 
-// Timesheet status
+/**
+ * Weekly Timesheet Submission & Approval Statuses
+ */
 export const TimesheetStatuses = {
   DRAFT: "Draft",
   SUBMITTED: "Submitted",
+  MANAGER_APPROVED: "Manager_Approved",
+  MANAGER_REJECTED: "Manager_Rejected",
+  ADMIN_APPROVED: "Admin_Approved",
+  ADMIN_REJECTED: "Admin_Rejected",
+  PARTIALLY_APPROVED: "Partially_Approved",
   APPROVED: "Approved",
-  REJECT: "Reject",
+  LOCKED: "Locked",
 };
 
-// Project status
+/**
+ * Monthly Payroll Maker-Checker Governance Statuses
+ */
+export const PayrollStatuses = {
+  DRAFT: "DRAFT",
+  SUBMITTED: "SUBMITTED",
+  APPROVED: "APPROVED",
+  FINALIZED: "FINALIZED",
+  PAID: "PAID",
+  REJECTED: "REJECTED",
+};
+
+/**
+ * Recruitment ATS Application Pipeline Stages
+ */
+export const ApplicationStages = {
+  APPLIED: "APPLIED",
+  REVIEWING: "REVIEWING",
+  SHORTLISTED: "SHORTLISTED",
+  INTERVIEW_SCHEDULED: "INTERVIEW_SCHEDULED",
+  INTERVIEWED: "INTERVIEWED",
+  OFFERED: "OFFERED",
+  HIRED: "HIRED",
+  REJECTED: "REJECTED",
+  WITHDRAWN: "WITHDRAWN",
+};
+
+/**
+ * Project Delivery Lifecycle Statuses
+ */
 export const ProjectStatuses = {
   PLANNED: "Planned",
   IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
   ON_HOLD: "On Hold",
+  CANCELLED: "Cancelled",
 };
 
-// Activity status
-export const ActivityStatuses = {
+/**
+ * Task & Ticket Operational Statuses
+ */
+export const TicketStatuses = {
+  OPEN: "Open",
   IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed",
+  REVIEW: "Review",
+  CLOSED: "Closed",
 };
 
-// Example user object structure
-// {
-//   employeeId: 'EMP001',
-//   name: 'John Doe',
-//   email: 'john@example.com',
-//   role: UserRoles.EMPLOYEE,
-//   department: 'Engineering',
-//   designation: 'Developer'
-// }
-
-// Example API error structure
-// {
-//   error: 'Some error',
-//   message: 'Optional message',
-//   stack: 'Optional stack trace'
-// }
-
-// Paginated response example
-// {
-//   data: [], // array of items
-//   count: 100,
-//   page: 1,
-//   limit: 10,
-//   total: 100
-// }
-
-// Date range example
-// {
-//   startDate: '2025-01-01',
-//   endDate: '2025-01-07'
-// }
-
-// Select option example
-// {
-//   value: 1,
-//   label: 'Option 1'
-// }
+/**
+ * Indian Statutory Regimes (FY 2026-27 / AY 2026-27)
+ */
+export const StatutoryRegimes = {
+  NEW_REGIME_FY2627: "NEW_REGIME_FY2627",
+  OLD_REGIME: "OLD_REGIME",
+};

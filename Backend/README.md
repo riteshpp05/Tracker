@@ -1,147 +1,111 @@
-# Shende Industries Enterprise Portal — Backend API
+# Shende Industries Enterprise Portal — Backend Architecture
 
-Enterprise REST API server powering the **Shende Industries Enterprise Portal**. Built with Node.js (ES Modules), Express, PostgreSQL 16, JWT authentication, and strict Role-Based Access Control (RBAC).
+Enterprise REST API server powering the **Shende Industries Enterprise Portal (PatilOne / TimeTrakPro v3.0)**. Built with Node.js (ES Modules), Express, PostgreSQL 16, JWT authentication, and strict Role-Based Access Control (RBAC).
 
 ---
 
-## Architecture Overview
+## 1. Directory Architecture
 
 ```
 Backend/
 ├── src/
 │   ├── config/
-│   │   ├── database.js          # PostgreSQL connection pool with transaction helpers
-│   │   └── env.js               # Validated environment configuration defaults
+│   │   └── database.js               # PostgreSQL connection pool with transaction helpers
 │   ├── controllers/
-│   │   ├── timesheet/           # Granular timesheet handlers (entry, approval, lookup)
+│   │   ├── timesheet/                # Granular timesheet handlers (entry, approval, lookup)
+│   │   │   ├── approvalController.js # Multi-tier timesheet review and approval state transitions
+│   │   │   ├── entryController.js    # Daily entry mutations and timesheet rollups
+│   │   │   └── lookupController.js   # Project, ticket, and department lookup helpers
 │   │   ├── adminProjectAssignmentController.js
-│   │   ├── auditController.js   # Immutable audit trail and state diff inspector
-│   │   ├── authController.js    # Login, token refresh, and profile management
-│   │   ├── clientController.js  # Client accounts and SPOC directory
-│   │   ├── dashboardController.js # Metric aggregators for all 4 roles
-│   │   ├── employeeController.js # Workforce directory and credential provisioning
-│   │   ├── expenseController.js # Expense claims and approval workflows
-│   │   ├── exportController.js  # Excel/CSV generation via exceljs
-│   │   ├── leaveController.js   # Leave balance tracking and multi-tier approvals
+│   │   ├── attendanceController.js   # Biometric and geofenced attendance tracking
+│   │   ├── auditController.js        # Immutable audit trail and state diff queries
+│   │   ├── authController.js         # Login, token refresh, and profile management
+│   │   ├── bulkImportController.js   # Bulk 300+ employee batch parsing & stress calculator
+│   │   ├── clientController.js       # Client accounts and SPOC directory
+│   │   ├── dashboardController.js    # Metric aggregators for all 4 operational roles
+│   │   ├── dbBackup.js               # Scheduled PostgreSQL backup job runner
+│   │   ├── emailController.js        # Automated email dispatch and digest cron jobs
+│   │   ├── employeeController.js     # Workforce directory and credential provisioning
+│   │   ├── enterpriseController.js   # Corporate multi-branch holiday calendar & notice board
+│   │   ├── expenseController.js      # Travel expense claims and approval workflows
+│   │   ├── exportController.js       # Excel/CSV generation via exceljs
+│   │   ├── leaveController.js        # Annual leave balance tracking and approvals
+│   │   ├── locationPolicyController.js # Multi-branch dynamic location policies & versioning
+│   │   ├── managerTicketAssignmentController.js
 │   │   ├── notificationController.js # In-app notification center
-│   │   ├── projectController.js # Client project master and milestones
-│   │   ├── publicController.js  # Public job listings, applications, and contact
-│   │   ├── recruitmentController.js # ATS pipeline & 1-click candidate onboarding
-│   │   ├── reportController.js  # Management reporting analytics
-│   │   ├── settingsController.js # Enterprise system settings and parameters
-│   │   ├── ticketController.js  # Deliverable tickets and tasks
-│   │   └── travelController.js  # Corporate travel authorization engine
+│   │   ├── payrollController.js      # Monthly payroll wizard & Maker-Checker state machine
+│   │   ├── projectAssignmentController.js
+│   │   ├── projectController.js      # Client project master and milestones
+│   │   ├── publicController.js       # Public website and contact submissions
+│   │   ├── recruitmentController.js  # ATS pipeline & 1-click candidate onboarding
+│   │   ├── reportController.js       # Management reporting and billability analytics
+│   │   ├── settingsController.js     # Enterprise system settings and working hours
+│   │   ├── taskController.js         # Granular project task master
+│   │   ├── ticketAssignmentController.js
+│   │   ├── ticketController.js       # Deliverable tickets and tasks
+│   │   ├── timesheetReportController.js # Detailed timesheet compliance reports
+│   │   └── travelController.js       # Corporate travel authorizations
 │   ├── middleware/
-│   │   ├── authMiddleware.js    # JWT verification, RBAC guard, and IDOR protection
-│   │   ├── errorHandler.js      # Sanitized central error handling
-│   │   ├── rateLimiter.js       # Request throttling and brute-force mitigation
-│   │   └── uploadMiddleware.js  # Secure Multer file upload (resumes, receipts)
-│   ├── models/                  # Database queries and relational access models
-│   ├── routes/                  # Express route definitions mounted under /api/v1
+│   │   ├── authMiddleware.js         # JWT verification, RBAC guard, and IDOR protection
+│   │   ├── errorHandler.js           # Centralized sanitized exception handler
+│   │   └── uploadMiddleware.js       # Secure Multer file upload (resumes, receipts)
+│   ├── models/
+│   │   └── Client.js                 # Client master Data Access Object (DAO)
+│   ├── routes/                       # Centralized Express route definitions (/api/...)
+│   │   └── index.js                  # Central root router mounting all domain sub-routers
 │   ├── services/
-│   │   ├── auditService.js      # Audit log ingestion with JSON diffing
-│   │   ├── emailService.js      # Nodemailer transport for enterprise notifications
-│   │   └── notificationService.js # In-app alert dispatch and status tracking
-│   ├── utils/                   # Time math (HH:MM to minutes), dates, validators
-│   └── server.js                # Express app entrypoint with security middleware
-├── uploads/                     # Storage directory for resumes and expense receipts
-├── .env.example                 # Environment variable template
-├── check_users.js               # CLI utility: inspect database users
-├── Dockerfile                   # Production container build with native build tools
-├── get_admins.js                # CLI utility: list system administrators
-├── hash_passwords.js            # CLI utility: migrate legacy plaintext passwords
-├── package.json                 # Dependencies and start scripts
-├── reset_admin.js               # CLI utility: reset Super Admin credentials
-└── reset_all_passwords.js       # CLI utility: bulk reset test passwords
+│   │   ├── emailService.js           # Nodemailer transport for enterprise notifications
+│   │   ├── exportServices.js         # Tabular data export services
+│   │   ├── geofenceService.js        # Attendance geofence radius calculation
+│   │   ├── notificationService.js    # In-app alert dispatch and status tracking
+│   │   └── payroll/                  # PatilOne Core Statutory Payroll Engine
+│   │       ├── bankPaymentExportService.js # NEFT/RTGS CSV generator with injection prevention
+│   │       ├── bulkImportService.js  # CSV workforce batch parser & pre-validation engine
+│   │       ├── ctcReconciliationEngine.js # Zero-Rupee Reconciliation invariant & Mode A engine
+│   │       ├── locationPolicyService.js # Multi-branch policy snapshots & custom PT slab evaluator
+│   │       ├── payrollCalculationEngine.js # Gross-to-net waterfall & proration engine
+│   │       ├── payrollInputCollector.js # Timesheet hours, attendance, and leave proration
+│   │       ├── payrollMockData.js    # Fallback seed state for demo simulation
+│   │       ├── payrollPilotService.js# Side-by-side Kredily shadow run delta analyzer
+│   │       ├── payrollValidationService.js # Pre-flight payroll calculation readiness guards
+│   │       └── statutoryRulesService.js # FY 2026-27 Sec 87A rebate, EPF, ESIC, Multi-State PT
+│   ├── utils/
+│   │   ├── bcrypt.js                 # Password hashing with standard salt rounds
+│   │   ├── recalculationHelper.js    # Timesheet recalculation helper
+│   │   └── timeUtils.js              # Time conversion (minutes to HH:MM, work hours)
+│   └── server.js                     # Express application bootstrap with Helmet, CORS, and routing
+├── tests/
+│   ├── coreModulesApi.test.js        # Core API endpoint regression suite
+│   ├── payrollApiIntegration.test.js # Layer 2 API, RBAC & Maker-Checker integration tests
+│   └── payrollEngine.test.js         # 102 statutory rule and payroll engine unit tests
+├── uploads/                          # Persistent storage for user resumes and receipts
+├── .env.example                      # Backend environment template
+├── Dockerfile                        # Multi-stage production container image
+└── package.json                      # Backend dependencies & npm scripts
 ```
 
 ---
 
-## Technology Stack
+## 2. Statutory Engine & Compliance Standards
 
-- **Runtime**: Node.js 18+ (ES Modules: `"type": "module"`)
-- **Web Framework**: Express v4.18
-- **Database Driver**: `pg` (node-postgres connection pool)
-- **Security**:
-  - `bcryptjs` / `bcrypt` for password hashing
-  - `jsonwebtoken` for access and refresh tokens
-  - `helmet` for HTTP security headers
-  - `cors` with granular origin whitelisting
-  - `express-rate-limit` for DDoS and brute-force defense
-- **Utilities**: `exceljs`, `uuid`, `node-cron`, `nodemailer`, `compression`, `morgan`
+- **Income Tax TDS (Section 192):** Fully compliant with New Tax Regime for **FY 2026-27 / AY 2026-27**, enforcing the ₹12,00,000 Section 87A rebate ceiling and ₹75,000 standard deduction.
+- **EPF & EPS:** Strict statutory wage ceiling of ₹15,000/mo (EPF ₹1,800/mo, EPS ₹1,250/mo), post-2014 EPS exclusion rule for joiners with basic > ₹15,000, and EDLI capped at ₹75/mo.
+- **ESIC:** Gross wage eligibility threshold of ₹21,000/mo, Rule 50 contribution period continuity proviso, and `Math.round` symmetric integer rounding.
+- **Multi-State Professional Tax:** Maharashtra standard slabs with February ₹300 surcharge and female exemption (gross &le; ₹25,000), Madhya Pradesh, and Karnataka state rules.
+- **Zero-Rupee Reconciliation:**
+  $$\text{Gross Salary} + \text{Total Employer Contributions} - \text{Monthly Loaded CTC} = 0.00$$
 
 ---
 
-## Getting Started
-
-### 1. Install Dependencies
-```powershell
-npm install
-```
-
-### 2. Configure Environment Variables
-Create a `.env` file based on `.env.example`:
-```powershell
-cp .env.example .env
-```
-
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `PORT` | `5000` | Port on which Express listens |
-| `NODE_ENV` | `development` | Runtime environment mode |
-| `DB_HOST` | `localhost` | PostgreSQL database host |
-| `DB_PORT` | `5435` | PostgreSQL database port (mapped port in Docker) |
-| `DB_NAME` | `timetrakpro` | PostgreSQL database name |
-| `DB_USER` | `postgres` | PostgreSQL username |
-| `DB_PASSWORD` | `postgres` | PostgreSQL password |
-| `JWT_SECRET` | `...` | High-entropy secret for signing access tokens |
-| `JWT_REFRESH_SECRET` | `...` | High-entropy secret for signing refresh tokens |
-| `JWT_EXPIRE` | `1d` | Access token lifespan |
-| `JWT_REFRESH_EXPIRE` | `7d` | Refresh token lifespan |
-| `FRONTEND_URL` | `http://localhost:3000` | Allowed CORS origin |
-
-### 3. Start the Server
-```powershell
-# Production mode:
-npm start
-
-# Development mode (with live reload via nodemon):
-npm run dev
-```
-
-### 4. Verify Health Check
-Send a `GET` request to:
-```
-http://localhost:5000/health
-```
-Expected response:
-```json
-{
-  "status": "OK",
-  "timestamp": "2026-10-12T00:00:00.000Z",
-  "uptime": 12.34
-}
-```
-
----
-
-## Management Utilities
-
-The backend includes standalone administrative scripts for maintenance:
+## 3. Running Backend Tests
 
 ```powershell
-# Verify user records and role assignments
-node check_users.js
+# Run payroll engine unit tests (102 tests):
+node tests/payrollEngine.test.js
 
-# List all Super Admin and HR Admin accounts
-node get_admins.js
+# Run API & Maker-Checker integration tests (12 tests):
+node tests/payrollApiIntegration.test.js
 
-# Hash any un-hashed plaintext passwords in the database
-node hash_passwords.js
-
-# Reset the Super Admin account (admin@shendeindustries.com / Admin@Shende2026)
-node reset_admin.js
-
-# Reset all demo user passwords to default test credentials
-node reset_all_passwords.js
+# Run all test suites:
+npm test
 ```
