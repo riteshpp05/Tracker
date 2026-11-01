@@ -39,6 +39,8 @@ import {
   BookOpen,
   MapPin,
   CheckCircle2,
+  Sliders,
+  Upload,
 } from "lucide-react";
 
 const BRAND_NAV = "#111827"; // SIPL Brand navy
@@ -133,6 +135,9 @@ export const Layout = ({ children }) => {
           { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
           { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
           { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
+          { name: "Location Policies", href: "/admin/payroll/locations", icon: Sliders },
+          { name: "CTC Simulator", href: "/admin/payroll/ctc-simulator", icon: Calculator },
+          { name: "Bulk Import", href: "/admin/payroll/bulk-import", icon: Upload },
         ],
       },
       {
@@ -177,6 +182,9 @@ export const Layout = ({ children }) => {
           { name: "Employee Salaries", href: "/admin/payroll/salaries", icon: CreditCard },
           { name: "Salary Structures", href: "/admin/payroll/structures", icon: Layers },
           { name: "Statutory Reports", href: "/admin/payroll/reports", icon: FileSpreadsheet },
+          { name: "Location Policies", href: "/admin/payroll/locations", icon: Sliders },
+          { name: "CTC Simulator", href: "/admin/payroll/ctc-simulator", icon: Calculator },
+          { name: "Bulk Import", href: "/admin/payroll/bulk-import", icon: Upload },
         ],
       },
       {

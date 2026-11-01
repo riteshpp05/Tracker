@@ -122,6 +122,83 @@ export const payrollService = {
     return res.data;
   },
 
+  // 8. Location Policy Manager & Multi-Branch CTC Matching Engine
+  async getLocationPolicies(includeInactive = false) {
+    const res = await api.get(`/payroll/location-policies${includeInactive ? "?includeInactive=true" : ""}`);
+    return res.data;
+  },
+
+  async getLocationPolicy(id) {
+    const res = await api.get(`/payroll/location-policies/${id}`);
+    return res.data;
+  },
+
+  async createLocationPolicy(data) {
+    const res = await api.post("/payroll/location-policies", data);
+    return res.data;
+  },
+
+  async updateLocationPolicy(id, data) {
+    const res = await api.put(`/payroll/location-policies/${id}`, data);
+    return res.data;
+  },
+
+  async deleteLocationPolicy(id) {
+    const res = await api.delete(`/payroll/location-policies/${id}`);
+    return res.data;
+  },
+
+  async getLocationPolicyHistory(id) {
+    const res = await api.get(`/payroll/location-policies/${id}/history`);
+    return res.data;
+  },
+
+  async assignLocationPolicy(id, employeeIds) {
+    const res = await api.post(`/payroll/location-policies/${id}/assign-employees`, { employeeIds });
+    return res.data;
+  },
+
+  async simulateCtc(params) {
+    const res = await api.post("/payroll/location-policies/simulate", params);
+    return res.data;
+  },
+
+  // 9. Bulk Import & Staging (300+ Employee Multi-Branch Onboarding)
+  async downloadBulkImportTemplate(filename = "payroll_bulk_import_template.csv") {
+    const res = await api.get("/payroll/bulk-import/template", {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+  },
+
+  async previewBulkImport(fileData) {
+    const res = await api.post("/payroll/bulk-import/preview", fileData, {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+    return res.data;
+  },
+
+  async executeBulkImport(fileData, force = false) {
+    const res = await api.post(`/payroll/bulk-import${force ? "?force=true" : ""}`, fileData, {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+    return res.data;
+  },
+
+  async getStagedImports(status = null, limit = 100, offset = 0) {
+    const params = new URLSearchParams({ limit, offset });
+    if (status) params.append("status", status);
+    const res = await api.get(`/payroll/bulk-import/staging?${params.toString()}`);
+    return res.data;
+  },
+
   // 5. Employee Self-Service
   async getMySalarySlips() {
     const res = await api.get("/payroll/my-slips");

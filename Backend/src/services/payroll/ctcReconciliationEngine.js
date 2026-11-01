@@ -307,6 +307,270 @@ class CtcReconciliationEngine {
       discrepancies,
     };
   }
+
+  // ─── Mode A: Net-to-CTC Decomposition ──────────────────────────────────────
+
+  /**
+   * decomposeFromNetSalary (Mode A — Net → CTC)
+   *
+   * Given a target monthly net in-hand salary and a location policy, compute
+   * the full salary breakdown including all components, employer costs, and CTC.
+   *
+   * Formula chain (matches SIPL plant/factory Excel model):
+   *  1. basic      = netSalary × policy.basic_percent_of_net / 100
+   *  2. basicPlusDA = basic + policy.da_fixed_amount
+   *  3. hra        = basicPlusDA × policy.hra_percent_of_basic_da / 100
+   *  4. fixedAllowances = washing + education + conveyance + medical + books
+   *  5. otherAllowance = netSalary − (basicPlusDA + hra + fixedAllowances)
+   *                      ← BALANCING PLUG; negative = net too low for this policy
+   *  6. pfWage     = min(basicPlusDA, PF ceiling) per pf_ceiling_mode
+   *  7. employeePF = pfWage × policy.employee_pf_rate
+   *  8. pt         = calculateMultiStatePT(netSalary, stateCode, gender, month).ptAmount
+   *                  NOTE: PT is calculated on net salary as proxy for gross, which
+   *                  matches the Excel sheets. Strict gross-based PT can be enabled
+   *                  by passing useGrossForPt=true.
+   *  9. grossSalary = netSalary + employeePF + pt
+   * 10. employerPF = pfWage × policy.employer_pf_rate  (cost-modelling rate, see schema comment)
+   * 11. bonus      = basicPlusDA × policy.bonus_rate
+   *                  Bonus Act cap: ₹7,000/month (₹84,000/year); capped if basicPlusDA > ₹7,000
+   * 12. gratuity   = basicPlusDA × policy.gratuity_rate  (employer accrual, not statutory vesting)
+   * 13. monthlyCtc = netSalary + employeePF + employerPF + pt + bonus + gratuity
+   * 14. yearlyCtc  = monthlyCtc × 12
+   *
+   * Validation flags:
+   *  - ERROR   : otherAllowance < 0 (BLOCKING — net salary too low for this policy's fixed allowances)
+   *  - WARNING : basic < 35% of grossSalary (low basic may indicate policy misconfiguration)
+   *  - INFO    : bonus capped by Payment of Bonus Act
+   *
+   * @param {Object} params
+   * @param {number} params.netSalary              Target monthly net in-hand (₹)
+   * @param {Object} params.policy                 Location policy object (from locationPolicyService)
+   * @param {number} [params.month=1]              Calendar month 1–12 (for PT)
+   * @param {string} [params.gender='Male']        Gender (for MH PT exemption)
+   * @param {boolean} [params.useGrossForPt=false] Use computed gross (not net) for PT slab lookup
+   * @returns {Object}  Full breakdown + validation status
+   */
+  decomposeFromNetSalary({
+    netSalary,
+    policy,
+    month = new Date().getMonth() + 1,
+    gender = "Male",
+    useGrossForPt = false,
+  }) {
+    const net = Math.max(0, Number(netSalary) || 0);
+    const validations = [];
+
+    if (net <= 0) {
+      return {
+        isValid: false,
+        error: "netSalary must be a positive number greater than zero",
+        validations: [{ tier: "ERROR", code: "INVALID_NET", message: "Net salary is zero or negative." }],
+      };
+    }
+    if (!policy || typeof policy !== "object") {
+      return {
+        isValid: false,
+        error: "policy is required",
+        validations: [{ tier: "ERROR", code: "MISSING_POLICY", message: "Location policy object is required." }],
+      };
+    }
+
+    // ── 1. Basic ────────────────────────────────────────────────────────────
+    const basicPct = Math.max(0, Number(policy.basic_percent_of_net) || 50);
+    const basic = this.round(net * basicPct / 100);
+
+    // ── 2. Basic + DA ───────────────────────────────────────────────────────
+    const da = Math.max(0, Number(policy.da_fixed_amount) || 0);
+    const basicPlusDA = this.round(basic + da);
+
+    // ── 3. HRA ──────────────────────────────────────────────────────────────
+    const hraPct = Math.max(0, Number(policy.hra_percent_of_basic_da) || 5);
+    const hra = this.round(basicPlusDA * hraPct / 100);
+
+    // ── 4. Fixed allowances ─────────────────────────────────────────────────
+    const washing     = this.round(Number(policy.washing_allowance)   || 0);
+    const education   = this.round(Number(policy.education_allowance) || 0);
+    const conveyance  = this.round(Number(policy.conveyance_allowance)|| 0);
+    const medical     = this.round(Number(policy.medical_allowance)   || 0);
+    const books       = this.round(Number(policy.books_periodicals)   || 0);
+    const fixedAllowances = washing + education + conveyance + medical + books;
+
+    // ── 5. Other Allowance (balancing plug) ─────────────────────────────────
+    const otherAllowance = this.round(net - basicPlusDA - hra - fixedAllowances);
+    if (otherAllowance < 0) {
+      validations.push({
+        tier: "ERROR",
+        code: "NET_TOO_LOW",
+        message: `Net salary ₹${net.toLocaleString("en-IN")} is insufficient for configured fixed allowances. ` +
+          `Minimum required: ₹${(net - otherAllowance).toLocaleString("en-IN")}. ` +
+          `Reduce fixed allowances or increase net salary.`,
+        shortfall: Math.abs(otherAllowance),
+      });
+    }
+
+    // ── 6. PF Wage Ceiling ──────────────────────────────────────────────────
+    const pfCeilingMode = String(policy.pf_ceiling_mode || "ACTUAL").toUpperCase();
+    let pfCeiling;
+    if (pfCeilingMode === "15000") {
+      pfCeiling = 15000;
+    } else if (pfCeilingMode === "25000") {
+      pfCeiling = 25000;
+    } else {
+      pfCeiling = Infinity; // ACTUAL mode: no ceiling
+    }
+    const pfWage = Math.min(basicPlusDA, pfCeiling);
+
+    // ── 7. Employee PF ──────────────────────────────────────────────────────
+    const empPFRate  = Math.max(0, Number(policy.employee_pf_rate) || 0.12);
+    const employeePF = this.round(pfWage * empPFRate);
+
+    // ── 8. Professional Tax ─────────────────────────────────────────────────
+    const stateCode   = String(policy.state_code || "MH").toUpperCase();
+    const ptBase      = useGrossForPt ? this.round(net + employeePF) : net;
+    const ptResult    = statutoryRulesService.calculateMultiStatePT(ptBase, stateCode, gender, month);
+    const pt          = ptResult.ptAmount;
+
+    // ── 9. Gross Salary ─────────────────────────────────────────────────────
+    const grossSalary = this.round(net + employeePF + pt);
+
+    // ── 10. Employer PF (cost-modelling rate) ──────────────────────────────
+    const emprPFRate = Math.max(0, Number(policy.employer_pf_rate) || 0.13);
+    const employerPF = this.round(pfWage * emprPFRate);
+
+    // ── 11. Bonus (Payment of Bonus Act cap: ₹7,000/month) ─────────────────
+    const bonusRate   = Math.max(0, Number(policy.bonus_rate) || 0.0833);
+    const bonusActCap = 7000;
+    const bonusBase   = Math.min(basicPlusDA, bonusActCap);
+    const bonus       = this.round(bonusBase * bonusRate);
+    if (basicPlusDA > bonusActCap) {
+      validations.push({
+        tier: "INFO",
+        code: "BONUS_CAPPED",
+        message: `Bonus capped at Payment of Bonus Act ceiling of ₹7,000/month. ` +
+          `Basic+DA ₹${basicPlusDA.toLocaleString("en-IN")} > ₹7,000; bonus base = ₹7,000.`,
+      });
+    }
+
+    // ── 12. Gratuity (employer cost accrual only) ───────────────────────────
+    const gratuityRate = Math.max(0, Number(policy.gratuity_rate) || 0.0481);
+    const gratuity     = this.round(basicPlusDA * gratuityRate);
+
+    // ── 13. Monthly CTC ─────────────────────────────────────────────────────
+    // monthlyCtc = netSalary + employeePF + employerPF + pt + bonus + gratuity
+    // Breakdown:
+    //   Employee gross (in-hand + deductions back-added): net + empPF + pt = grossSalary
+    //   Employer add-ons (not received by employee): emprPF + bonus + gratuity
+    const monthlyCtc = this.round(net + employeePF + employerPF + pt + bonus + gratuity);
+
+    // ── 14. Yearly CTC ──────────────────────────────────────────────────────
+    const yearlyCtc = monthlyCtc * 12;
+
+    // ── Basic % check ────────────────────────────────────────────────────────
+    const basicPctOfGross = grossSalary > 0 ? (basic / grossSalary) * 100 : 0;
+    if (basicPctOfGross < 35) {
+      validations.push({
+        tier: "WARNING",
+        code: "LOW_BASIC",
+        message: `Basic salary (${basicPctOfGross.toFixed(1)}% of gross) is below 35%. ` +
+          `Consider increasing basic_percent_of_net in the location policy.`,
+      });
+    }
+
+    // ── Zero-penny reconciliation check ─────────────────────────────────────
+    // Verify: gross earnings + employer costs = monthly CTC
+    const earningSide  = net + employeePF + pt;   // grossSalary
+    const employerSide = employerPF + bonus + gratuity;
+    const ctcCheck     = earningSide + employerSide;
+    const variance     = Math.abs(ctcCheck - monthlyCtc);
+    // Should always be 0 by construction; guard against floating-point edge cases
+    if (variance > 1) {
+      validations.push({
+        tier: "ERROR",
+        code: "CTC_INTERNAL_VARIANCE",
+        message: `Internal CTC reconciliation variance ₹${variance}. Please report this as a calculation bug.`,
+        variance,
+      });
+    }
+
+    const hasBlockingError = validations.some((v) => v.tier === "ERROR");
+
+    return {
+      isValid: !hasBlockingError,
+      mode: "NET_TO_CTC",
+      policyCode: policy.code || null,
+      policyName: policy.name || null,
+      stateCode,
+      month,
+      gender,
+
+      // ── Inputs ────────────────────────────────────────
+      inputs: {
+        targetNetSalary:         net,
+        basicPercentOfNet:       basicPct,
+        daFixedAmount:           da,
+        hraPercentOfBasicDA:     hraPct,
+        pfCeilingMode,
+        pfWageCeiling:           pfCeiling === Infinity ? "No ceiling (ACTUAL)" : pfCeiling,
+        employeePFRate:          empPFRate,
+        employerPFRate:          emprPFRate,
+        bonusRate,
+        gratuityRate,
+      },
+
+      // ── Earnings (employee receives) ──────────────────
+      earnings: {
+        basic,
+        da,
+        basicPlusDA,
+        hra,
+        washing,
+        education,
+        conveyance,
+        medical,
+        books,
+        fixedAllowances,
+        otherAllowance,
+        totalEarnings: this.round(basic + da + hra + fixedAllowances + Math.max(0, otherAllowance)),
+      },
+
+      // ── Employee deductions ───────────────────────────
+      deductions: {
+        employeePF,
+        professionalTax:  pt,
+        ptSlab:           ptResult.slab,
+        totalDeductions:  this.round(employeePF + pt),
+      },
+
+      // ── Summary line ──────────────────────────────────
+      grossSalary,        // employee gross (in-hand + deductions)
+      netSalary:   net,   // confirmed take-home
+
+      // ── Employer costs (not received by employee) ─────
+      employerCosts: {
+        employerPF,
+        bonus,
+        bonusCapped:   basicPlusDA > bonusActCap,
+        gratuity,
+        gratuityNote:  "Employer cost accrual per AS 15. Not a statutory payable until 5-year vesting.",
+        totalEmployerCosts: this.round(employerPF + bonus + gratuity),
+      },
+
+      // ── CTC Summary ───────────────────────────────────
+      monthlyCtc,
+      yearlyCtc,
+      ctcBreakdown: {
+        grossSalary,                              // net + empPF + PT
+        employerPFCost:  employerPF,
+        bonusCost:       bonus,
+        gratuityCost:    gratuity,
+        total:           monthlyCtc,
+      },
+
+      // ── Validation ────────────────────────────────────
+      validations,
+      validationStatus: hasBlockingError ? "INVALID" : validations.some((v) => v.tier === "WARNING") ? "WARNING" : "VALID",
+    };
+  }
 }
 
 export default new CtcReconciliationEngine();

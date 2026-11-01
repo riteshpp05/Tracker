@@ -55,6 +55,9 @@ import SalaryStructuresPage from "./components/payroll/SalaryStructuresPage";
 import MonthlyPayrollPage from "./components/payroll/MonthlyPayrollPage";
 import StatutoryReportsPage from "./components/payroll/StatutoryReportsPage";
 import EmployeePayslipsPage from "./components/payroll/EmployeePayslipsPage";
+import LocationPoliciesPage from "./components/payroll/LocationPoliciesPage";
+import CtcMatchingSimulatorPage from "./components/payroll/CtcMatchingSimulatorPage";
+import BulkImportPage from "./components/payroll/BulkImportPage";
 
 // Cloudstine Enterprise Suite Components
 import AttendanceDashboard from "./components/attendance/AttendanceDashboard";
@@ -558,6 +561,30 @@ export function AppRoutes() {
           element={
             <ProtectedRoute roles={["ADMIN", "HR"]}>
               <StatutoryReportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/locations"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <LocationPoliciesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/ctc-simulator"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <CtcMatchingSimulatorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payroll/bulk-import"
+          element={
+            <ProtectedRoute roles={["ADMIN", "HR"]}>
+              <BulkImportPage />
             </ProtectedRoute>
           }
         />

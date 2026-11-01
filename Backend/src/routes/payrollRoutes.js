@@ -1,6 +1,8 @@
 // Backend/src/routes/payrollRoutes.js
 import express from "express";
 import payrollController from "../controllers/payrollController.js";
+import * as locationPolicyController from "../controllers/locationPolicyController.js";
+import * as bulkImportController from "../controllers/bulkImportController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -55,5 +57,87 @@ router.post("/reconcile-ctc", authorizeRoles(["ADMIN", "HR"]), payrollController
 
 // 7. Payroll Pilot & Parallel Testing (Kredily Comparison Engine)
 router.post("/pilot/kredily-compare", authorizeRoles(["ADMIN", "HR"]), payrollController.pilotCompareKredily.bind(payrollController));
+
+// ================================================================
+// 8. Location Policy Manager (HR-configurable per-branch payroll rules)
+// ================================================================
+// NOTE: /simulate must be registered BEFORE /:id to avoid route shadowing
+router.post(
+  "/location-policies/simulate",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.simulateCtc
+);
+router.get(
+  "/location-policies",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.listPolicies
+);
+router.post(
+  "/location-policies",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.createPolicy
+);
+router.get(
+  "/location-policies/:id",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.getPolicy
+);
+router.put(
+  "/location-policies/:id",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.updatePolicy
+);
+router.delete(
+  "/location-policies/:id",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.deletePolicy
+);
+router.get(
+  "/location-policies/:id/history",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.getPolicyHistory
+);
+router.post(
+  "/location-policies/:id/assign-employees",
+  authorizeRoles(["ADMIN", "HR"]),
+  locationPolicyController.assignEmployees
+);
+
+// ================================================================
+// 9. Bulk Import & Staging (300+ Employee Multi-Branch Onboarding)
+// ================================================================
+const rawBodyParser = express.raw({
+  type: [
+    "text/csv",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/octet-stream",
+    "text/plain",
+    "*/*", // allow raw stream/buffer upload from frontend fetch/axios
+  ],
+  limit: "15mb",
+});
+
+router.get(
+  "/bulk-import/template",
+  authorizeRoles(["ADMIN", "HR"]),
+  bulkImportController.downloadTemplate
+);
+router.post(
+  "/bulk-import/preview",
+  authorizeRoles(["ADMIN", "HR"]),
+  rawBodyParser,
+  bulkImportController.previewImport
+);
+router.post(
+  "/bulk-import",
+  authorizeRoles(["ADMIN", "HR"]),
+  rawBodyParser,
+  bulkImportController.executeImport
+);
+router.get(
+  "/bulk-import/staging",
+  authorizeRoles(["ADMIN", "HR"]),
+  bulkImportController.listStagedRecords
+);
 
 export default router;

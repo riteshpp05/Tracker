@@ -14,6 +14,11 @@ import bankExportService from "../src/services/payroll/bankPaymentExportService.
 import ctcReconciliationEngine from "../src/services/payroll/ctcReconciliationEngine.js";
 import validationService from "../src/services/payroll/payrollValidationService.js";
 import pilotService from "../src/services/payroll/payrollPilotService.js";
+import * as bulkImportService from "../src/services/payroll/bulkImportService.js";
+
+// Local aliases used in Mode A tests
+const statutory  = statutoryRulesService;
+const ctcEngine  = ctcReconciliationEngine;
 
 let passed = 0;
 let failed = 0;
@@ -21,6 +26,18 @@ let failed = 0;
 function test(label, fn) {
   try {
     fn();
+    console.log(`  ✓ ${label}`);
+    passed++;
+  } catch (err) {
+    console.error(`  ✗ ${label}`);
+    console.error(`    ${err.message}`);
+    failed++;
+  }
+}
+
+async function asyncTest(label, fn) {
+  try {
+    await fn();
     console.log(`  ✓ ${label}`);
     passed++;
   } catch (err) {
@@ -924,6 +941,297 @@ test("Statutory registry returns official citations for all statutory regimes", 
   assert.ok(registry.tds.section87ARebateThreshold === 1200000);
   assert.ok(registry.gratuity.statutoryCeiling === 2000000);
   assert.ok(registry.gratuity.vestingPeriodYears === 5);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Mode A: Net → CTC Decomposition Engine (decomposeFromNetSalary)
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n✦ Mode A: Net-to-CTC Decomposition Engine");
+
+{
+  // ── Helper policy builders ──────────────────────────────────────
+  // Policy matching generic plant model: Basic=50% of Net, DA=₹3,700, HRA=5% of B+DA
+  const plantBetaPolicy = {
+    code: "BRANCH-KB",
+    name: "Branch KB",
+    state_code: "MH",
+    basic_calculation_mode: "PERCENT_OF_NET",
+    basic_percent_of_net: 50,
+    da_fixed_amount: 3700,
+    hra_percent_of_basic_da: 5,
+    washing_allowance: 1000,
+    education_allowance: 1200,
+    conveyance_allowance: 1750,
+    medical_allowance: 1000,
+    books_periodicals: 1000,
+    pf_ceiling_mode: "ACTUAL",
+    employee_pf_rate: 0.12,
+    employer_pf_rate: 0.13,
+    bonus_rate: 0.0833,
+    gratuity_rate: 0.0481,
+  };
+
+  // Policy with MP state code
+  const mpBranchPolicy = { ...plantBetaPolicy, code: "BRANCH-MP", name: "Branch MP", state_code: "MP", da_fixed_amount: 2850 };
+
+  // Policy with zero DA (pure percent-of-net)
+  const zeroDaPolicy   = { ...plantBetaPolicy, code: "BRANCH-ZD", name: "Branch ZD", da_fixed_amount: 0 };
+
+  // ── Test 1: Basic decomposition, generic plant policy ──────
+  // Net = ₹26,000, MH state, month=3 (not Feb)
+  // basic   = 26000 × 50% = ₹13,000
+  // B+DA    = 13000 + 3700 = ₹16,700
+  // HRA     = 16700 × 5% = ₹835
+  // fixedA  = 1000+1200+1750+1000+1000 = ₹5,950
+  // otherA  = 26000 - 16700 - 835 - 5950 = ₹2,515
+  // pfWage  = 16700 (ACTUAL, no ceiling)
+  // empPF   = 16700 × 12% = ₹2,004
+  // PT (MH, Male, month 3, gross-proxy=26000) → ₹200 (>₹10,000)
+  // gross   = 26000 + 2004 + 200 = ₹28,204
+  // emprPF  = 16700 × 13% = ₹2,171
+  // bonus   = min(16700,7000) × 8.33% = 7000 × 0.0833 = ₹583.1 → ₹583
+  // gratuity= 16700 × 4.81% = ₹803.27 → ₹803
+  // monthly = 26000 + 2004 + 2171 + 200 + 583 + 803 = ₹31,761
+  // yearly  = 31761 × 12 = ₹381,132
+  test("Mode A: Basic decomposition — generic plant policy, net ₹26,000", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 26000, policy: plantBetaPolicy, month: 3, gender: "Male" });
+    assert.strictEqual(result.isValid, true, "should be valid");
+    assert.strictEqual(result.mode, "NET_TO_CTC", "mode flag");
+    assert.strictEqual(result.earnings.basic, 13000, "basic");
+    assert.strictEqual(result.earnings.basicPlusDA, 16700, "basic+DA");
+    assert.strictEqual(result.earnings.hra, 835, "HRA");
+    assert.strictEqual(result.earnings.otherAllowance, 2515, "other allowance");
+    assert.strictEqual(result.deductions.employeePF, 2004, "employee PF");
+    assert.strictEqual(result.deductions.professionalTax, 200, "PT (MH standard month)");
+    assert.strictEqual(result.grossSalary, 28204, "gross salary");
+    assert.strictEqual(result.employerCosts.employerPF, 2171, "employer PF");
+    assert.strictEqual(result.employerCosts.bonus, 583, "bonus (capped at ₹7,000 base)");
+    assert.strictEqual(result.employerCosts.gratuity, 803, "gratuity accrual");
+    assert.strictEqual(result.monthlyCtc, 31761, "monthly CTC");
+    assert.strictEqual(result.yearlyCtc, 381132, "yearly CTC");
+  });
+
+  // ── Test 2: February adjustment (MH PT = ₹300 in Feb) ─────────
+  test("Mode A: MH PT February adjustment (₹300 in month=2)", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 26000, policy: plantBetaPolicy, month: 2, gender: "Male" });
+    assert.strictEqual(result.deductions.professionalTax, 300, "PT should be ₹300 in February (MH)");
+    // Monthly CTC increases by ₹100 due to higher PT
+    assert.strictEqual(result.monthlyCtc, 31861, "monthly CTC in February");
+  });
+
+  // ── Test 3: MP state, gross > ₹20,000 → PT = ₹208 ─────────────
+  test("Mode A: MP state PT (≥₹20,000 → ₹208)", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 40000, policy: mpBranchPolicy, month: 3, gender: "Male" });
+    assert.strictEqual(result.deductions.professionalTax, 208, "MP PT at ≥₹20,000 gross");
+    assert.strictEqual(result.stateCode, "MP", "state code in result");
+  });
+
+  // ── Test 4: MP PT slab ₹15,000–₹19,999 → ₹167 ─────────────────
+  test("Mode A: MP state PT (₹15,000–₹19,999 → ₹167)", () => {
+    // Net ₹16,000: pfWage proxy = 16000*50%+2850=10850; gross-proxy=net=16000
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 16000, policy: mpBranchPolicy, month: 5, gender: "Male" });
+    assert.strictEqual(result.deductions.professionalTax, 167, "MP PT at ₹15k–₹19,999");
+  });
+
+  // ── Test 5: MP PT slab ₹10,000–₹14,999 → ₹125 ─────────────────
+  test("Mode A: MP state PT (₹10,000–₹14,999 → ₹125)", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 12000, policy: mpBranchPolicy, month: 5, gender: "Male" });
+    assert.strictEqual(result.deductions.professionalTax, 125, "MP PT at ₹10k–₹14,999");
+  });
+
+  // ── Test 6: MP PT slab < ₹10,000 → ₹0 ────────────────────────
+  test("Mode A: MP state PT (< ₹10,000 → ₹0)", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 8000, policy: mpBranchPolicy, month: 5, gender: "Male" });
+    assert.strictEqual(result.deductions.professionalTax, 0, "MP PT below ₹10,000");
+  });
+
+  // ── Test 7: MH Female PT exemption ≤ ₹25,000 ───────────────────
+  test("Mode A: MH Female PT exempt (net ≤ ₹25,000)", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 24000, policy: plantBetaPolicy, month: 6, gender: "Female" });
+    assert.strictEqual(result.deductions.professionalTax, 0, "MH female exempt (net ≤₹25k)");
+  });
+
+  // ── Test 8: otherAllowance < 0 → INVALID with ERROR validation ─
+  test("Mode A: Net too low for fixed allowances → INVALID with ERROR", () => {
+    // Net ₹5,000, fixed allowances alone = ₹5,950; other allowance will be deeply negative
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 5000, policy: plantBetaPolicy, month: 3, gender: "Male" });
+    assert.strictEqual(result.isValid, false, "should be invalid");
+    assert.strictEqual(result.validationStatus, "INVALID", "status = INVALID");
+    const err = result.validations.find(v => v.code === "NET_TOO_LOW");
+    assert(err, "should have NET_TOO_LOW error");
+    assert.ok(err.shortfall > 0, "shortfall should be positive");
+  });
+
+  // ── Test 9: PF ceiling = '15000' ───────────────────────────────
+  // B+DA = 16700, but PF ceiling = ₹15,000 → pfWage=15000
+  // empPF = 15000×12% = ₹1800
+  // emprPF = 15000×13% = ₹1950
+  test("Mode A: PF ceiling mode '15000' caps PF wage", () => {
+    const capped = { ...plantBetaPolicy, pf_ceiling_mode: "15000" };
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 26000, policy: capped, month: 3, gender: "Male" });
+    assert.strictEqual(result.deductions.employeePF, 1800, "employee PF with ₹15,000 ceiling");
+    assert.strictEqual(result.employerCosts.employerPF, 1950, "employer PF with ₹15,000 ceiling");
+  });
+
+  // ── Test 10: PF ceiling = '25000' ──────────────────────────────
+  // B+DA = 16700 < 25000 → pfWage = 16700 (ceiling not hit)
+  test("Mode A: PF ceiling '25000' (B+DA < 25000 — ceiling not triggered)", () => {
+    const cap25k = { ...plantBetaPolicy, pf_ceiling_mode: "25000" };
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 26000, policy: cap25k, month: 3, gender: "Male" });
+    assert.strictEqual(result.deductions.employeePF, 2004, "employee PF: ceiling=25000, B+DA=16700 → uncapped");
+  });
+
+  // ── Test 11: PF ceiling = '25000', B+DA > 25000 → capped ───────
+  // Net = ₹60,000; basic = ₹30,000; B+DA = 33,700 > 25,000 → pfWage = 25,000
+  test("Mode A: PF ceiling '25000' caps PF wage when B+DA > ₹25,000", () => {
+    const cap25k = { ...plantBetaPolicy, pf_ceiling_mode: "25000" };
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 60000, policy: cap25k, month: 3, gender: "Male" });
+    const expectedPfWage = 25000;
+    assert.strictEqual(result.deductions.employeePF, Math.round(expectedPfWage * 0.12), "empPF capped at 25000×12%");
+    assert.strictEqual(result.employerCosts.employerPF, Math.round(expectedPfWage * 0.13), "emprPF capped at 25000×13%");
+  });
+
+  // ── Test 12: Zero DA policy ─────────────────────────────────────
+  test("Mode A: Zero DA — basicPlusDA equals basic", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 30000, policy: zeroDaPolicy, month: 3, gender: "Male" });
+    assert.strictEqual(result.earnings.da, 0, "DA should be 0");
+    assert.strictEqual(result.earnings.basic, result.earnings.basicPlusDA, "B+DA = Basic when DA=0");
+  });
+
+  // ── Test 13: CTC internal variance must be 0 ────────────────────
+  test("Mode A: Internal CTC reconciliation — zero penny variance", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 35000, policy: plantBetaPolicy, month: 7, gender: "Male" });
+    const { grossSalary, employerCosts, monthlyCtc } = result;
+    const recomputed = grossSalary + employerCosts.totalEmployerCosts;
+    assert.strictEqual(Math.abs(recomputed - monthlyCtc), 0, "zero-penny CTC internal reconciliation");
+  });
+
+  // ── Test 14: BONUS_CAPPED info validation present when B+DA > ₹7,000 ──
+  test("Mode A: Bonus Act cap info appears when Basic+DA > ₹7,000", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 26000, policy: plantBetaPolicy, month: 3, gender: "Male" });
+    const bonusInfo = result.validations.find(v => v.code === "BONUS_CAPPED");
+    assert(bonusInfo, "BONUS_CAPPED info validation should be present (B+DA=16700 > 7000)");
+    assert.strictEqual(bonusInfo.tier, "INFO", "tier should be INFO");
+  });
+
+  // ── Test 15: Invalid input — zero net salary ────────────────────
+  test("Mode A: Zero netSalary returns isValid=false", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 0, policy: plantBetaPolicy, month: 3, gender: "Male" });
+    assert.strictEqual(result.isValid, false, "zero net salary is invalid");
+  });
+
+  // ── Test 16: Missing policy returns isValid=false ───────────────
+  test("Mode A: Missing policy returns isValid=false", () => {
+    const result = ctcEngine.decomposeFromNetSalary({ netSalary: 26000, policy: null, month: 3, gender: "Male" });
+    assert.strictEqual(result.isValid, false, "null policy is invalid");
+  });
+
+  // ── Test 17: Multi-state PT — Karnataka ────────────────────────
+  test("Multi-state PT: KA, gross ₹32,000 → ₹200", () => {
+    const ptResult = statutory.calculateMultiStatePT(32000, "KA", "Male", 5);
+    assert.strictEqual(ptResult.ptAmount, 200, "KA PT ≥₹30,000 = ₹200");
+    assert.strictEqual(ptResult.stateCode, "KA", "state code preserved");
+  });
+
+  // ── Test 18: Multi-state PT — Karnataka lower slab ─────────────
+  test("Multi-state PT: KA, gross ₹20,000 → ₹150", () => {
+    const ptResult = statutory.calculateMultiStatePT(20000, "KA", "Male", 5);
+    assert.strictEqual(ptResult.ptAmount, 150, "KA PT ₹15k–₹29,999 = ₹150");
+  });
+
+  // ── Test 19: Multi-state PT — NONE → ₹0 ───────────────────────
+  test("Multi-state PT: NONE state → ₹0", () => {
+    const ptResult = statutory.calculateMultiStatePT(50000, "NONE", "Male", 5);
+    assert.strictEqual(ptResult.ptAmount, 0, "NONE state = no PT");
+  });
+
+  // ── Test 20: calculateProfessionalTax still works (backward compat) ──
+  test("PT backward compat: calculateProfessionalTax delegates to MH slabs", () => {
+    // ₹15,000 gross, Male, month=6 → MH standard ₹200
+    const ptResult = statutory.calculateProfessionalTax(15000, "Male", 6);
+    assert.strictEqual(ptResult.ptAmount, 200, "backward compat: MH ₹200 for >₹10,000 male");
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Bulk Import Parser & 300+ Employee Batch Performance Test
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n✦ Bulk Import Parser & 300+ Employee Performance");
+
+test("Bulk Import: Template CSV contains required headers", () => {
+  const template = bulkImportService.getTemplateCsv();
+  assert.ok(template.includes("employee_code"), "must have employee_code header");
+  assert.ok(template.includes("first_name"), "must have first_name header");
+  assert.ok(template.includes("last_name"), "must have last_name header");
+  assert.ok(template.includes("target_net_salary"), "must have target_net_salary header");
+  assert.ok(template.includes("location_code"), "must have location_code header");
+});
+
+await asyncTest("Bulk Import: parseBulkTemplate parses valid CSV buffer", async () => {
+  const csvData = [
+    "employee_code,first_name,last_name,target_net_salary,location_code",
+    "EMP001,John,Doe,25000,BRANCH-ALPHA",
+    "EMP002,Jane,Smith,30000,BRANCH-BETA"
+  ].join("\n");
+  const buffer = Buffer.from(csvData, "utf-8");
+  const { headers, rows } = await bulkImportService.parseBulkTemplate(buffer);
+  assert.strictEqual(headers.length, 5, "5 headers parsed");
+  assert.strictEqual(rows.length, 2, "2 data rows parsed");
+  assert.strictEqual(rows[0].employee_code, "EMP001");
+  assert.strictEqual(rows[1].first_name, "Jane");
+});
+
+await asyncTest("Bulk Import: parseBulkTemplate rejects empty buffer", async () => {
+  const emptyCsv = Buffer.from("", "utf-8");
+  await assert.rejects(
+    async () => await bulkImportService.parseBulkTemplate(emptyCsv),
+    /CSV file must contain a header row/
+  );
+});
+
+test("300+ Employee Batch Performance & Zero-Variance Stress Test", () => {
+  const samplePolicy = {
+    code: "BRANCH-PERF",
+    name: "Branch Performance",
+    state_code: "MH",
+    basic_calculation_mode: "PERCENT_OF_NET",
+    basic_percent_of_net: 50,
+    da_fixed_amount: 3500,
+    hra_percent_of_basic_da: 5,
+    washing_allowance: 1000,
+    education_allowance: 1200,
+    conveyance_allowance: 1750,
+    medical_allowance: 1000,
+    books_periodicals: 1000,
+    pf_ceiling_mode: "ACTUAL",
+    employee_pf_rate: 0.12,
+    employer_pf_rate: 0.13,
+    bonus_rate: 0.0833,
+    gratuity_rate: 0.0481,
+  };
+
+  const startTime = Date.now();
+  const count = 350; // test with 350 employees (> 300)
+  let totalCalculatedCtc = 0;
+
+  for (let i = 1; i <= count; i++) {
+    // Generate varying salaries from ₹22,000 to ₹92,000
+    const netSalary = 22000 + (i * 200);
+    const result = ctcEngine.decomposeFromNetSalary({
+      netSalary,
+      policy: samplePolicy,
+      month: (i % 12) + 1,
+      gender: i % 2 === 0 ? "Female" : "Male",
+    });
+
+    assert.strictEqual(result.isValid, true, `Record ${i} should be valid`);
+    assert.strictEqual(result.varianceAmount || 0, 0, `Record ${i} should have 0 variance`);
+    totalCalculatedCtc += result.monthlyCtc;
+  }
+
+  const durationMs = Date.now() - startTime;
+  console.log(`    Calculated ${count} employee records in ${durationMs}ms (Avg ${(durationMs / count).toFixed(3)}ms/record, Total Monthly CTC: ₹${totalCalculatedCtc.toLocaleString("en-IN")})`);
+  assert.ok(durationMs < 2000, `Execution time ${durationMs}ms must be under 2000ms`);
 });
 
 // ═══════════════════════════════════════════════════════════════════

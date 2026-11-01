@@ -330,31 +330,132 @@ class StatutoryRulesService {
    * - Annual ceiling: ₹2,500
    */
   calculateProfessionalTax(grossPay, gender = "Male", month = 1) {
+    // Delegate to multi-state PT (default to Maharashtra for backward compat)
+    return this.calculateMultiStatePT(grossPay, "MH", gender, month);
+  }
+
+  /**
+   * Multi-State Professional Tax Calculator
+   *
+   * Supported states and sources:
+   *
+   * MH — Maharashtra:
+   *   Maharashtra State Tax on Professions, Trades, Callings and Employments Act, 1975
+   *   as amended by Maharashtra Act No. XIX of 2023 (Gazette April 6, 2023, w.e.f. April 1, 2023)
+   *   Slabs (monthly gross):
+   *     Male  : ≤₹7,500 → ₹0 | ₹7,501–₹10,000 → ₹175 | >₹10,000 → ₹200 (Feb ₹300)
+   *     Female: ≤₹25,000 → ₹0 (exempt) | >₹25,000 → ₹200 (Feb ₹300)
+   *   Annual ceiling: ₹2,500
+   *
+   * MP — Madhya Pradesh:
+   *   Madhya Pradesh Vritti Kar Adhiniyam, 1995 (MP Professional Tax Act)
+   *   As per Schedule I applicable from FY 2023-24 onwards
+   *   Slabs (monthly gross):
+   *     ≤₹9,999 → ₹0
+   *     ₹10,000–₹14,999 → ₹125
+   *     ₹15,000–₹19,999 → ₹167   (Excel sheets show ₹166–₹167 rounding; statutory is ₹167)
+   *     ≥₹20,000 → ₹208
+   *   Annual ceiling: ₹2,496 (12 × ₹208)
+   *   No gender exemption in MP.
+   *
+   * GJ — Gujarat:
+   *   Gujarat State Tax on Professions, Trades, Callings and Employments Act, 1976
+   *   Slabs (annual CTC-based; approximated to monthly gross for monthly deduction):
+   *     Monthly gross ≤₹5,999 → ₹0
+   *     Monthly gross ₹6,000–₹8,999 → ₹80
+   *     Monthly gross ₹9,000–₹11,999 → ₹150
+   *     Monthly gross ≥₹12,000 → ₹200
+   *   NOTE: Gujarat PT is typically paid in two half-yearly installments.
+   *         Monthly deduction shown here is an equal monthly spread.
+   *   CAUTION: Verify current Gujarat PT schedule before production use.
+   *
+   * KA — Karnataka:
+   *   Karnataka Tax on Professions, Trades, Callings and Employments Act, 1976
+   *   as amended (last major amendment 2017)
+   *   Monthly gross slabs:
+   *     ≤₹14,999 → ₹0
+   *     ₹15,000–₹29,999 → ₹150
+   *     ≥₹30,000 → ₹200
+   *   No February adjustment in Karnataka.
+   *
+   * TN — Tamil Nadu:
+   *   Tamil Nadu Professional Tax (levied under Article 276 of the Constitution)
+   *   No Professional Tax currently levied in Tamil Nadu (state abolished it in 1988).
+   *   Returns ₹0.
+   *
+   * OTHER / NONE → ₹0 (not applicable or state not configured)
+   *
+   * @param {number} grossPay   Monthly gross salary
+   * @param {string} stateCode  'MH'|'MP'|'GJ'|'KA'|'TN'|'AP'|'TS'|'WB'|'OTHER'|'NONE'
+   * @param {string} gender     'Male'|'Female' (relevant only for MH currently)
+   * @param {number} month      Calendar month 1–12 (relevant for MH February adjustment)
+   * @returns {{ ptAmount: number, stateCode: string, slab: string }}
+   */
+  calculateMultiStatePT(grossPay, stateCode = "MH", gender = "Male", month = 1) {
     const gross = Math.max(0, Number(grossPay) || 0);
+    const state = String(stateCode || "MH").toUpperCase();
     const isFemale = String(gender).toLowerCase().startsWith("f");
     const isFeb = Number(month) === 2;
 
-    if (isFemale && gross <= 25000) {
-      return {
-        ptAmount: 0,
-        slab: "Female Exemption (≤ ₹25,000) — Maharashtra Act XIX of 2023",
-      };
-    }
+    switch (state) {
+      case "MH": {
+        // Maharashtra Act No. XIX of 2023
+        if (isFemale && gross <= 25000) {
+          return { ptAmount: 0, stateCode: "MH", slab: "Female Exempt (≤₹25,000) — MH Act XIX/2023" };
+        }
+        if (!isFemale && gross <= 7500) {
+          return { ptAmount: 0, stateCode: "MH", slab: "Nil (≤₹7,500) — MH Act XIX/2023" };
+        }
+        if (!isFemale && gross <= 10000) {
+          return { ptAmount: 175, stateCode: "MH", slab: "₹7,501–₹10,000 → ₹175 — MH Act XIX/2023" };
+        }
+        const ptAmount = isFeb ? 300 : 200;
+        return { ptAmount, stateCode: "MH", slab: isFeb ? "February ₹300 (Annual Cap ₹2,500)" : "Standard ₹200 — MH Act XIX/2023" };
+      }
 
-    if (!isFemale && gross <= 7500) {
-      return { ptAmount: 0, slab: "Nil (≤ ₹7,500)" };
-    }
+      case "MP": {
+        // Madhya Pradesh Vritti Kar Adhiniyam, 1995 — Schedule I
+        if (gross <= 9999)  return { ptAmount: 0,   stateCode: "MP", slab: "Nil (≤₹9,999) — MP PT Act 1995" };
+        if (gross <= 14999) return { ptAmount: 125,  stateCode: "MP", slab: "₹10,000–₹14,999 → ₹125 — MP PT Act 1995" };
+        if (gross <= 19999) return { ptAmount: 167,  stateCode: "MP", slab: "₹15,000–₹19,999 → ₹167 — MP PT Act 1995" };
+        return              { ptAmount: 208,  stateCode: "MP", slab: "≥₹20,000 → ₹208 — MP PT Act 1995" };
+      }
 
-    if (!isFemale && gross <= 10000) {
-      return { ptAmount: 175, slab: "₹7,501 – ₹10,000 (₹175/mo)" };
-    }
+      case "GJ": {
+        // Gujarat PT Act 1976 — monthly approximation
+        // CAUTION: Verify current Gujarat PT schedule; slabs change periodically.
+        if (gross <= 5999)  return { ptAmount: 0,   stateCode: "GJ", slab: "Nil (≤₹5,999) — GJ PT Act 1976 [VERIFY]" };
+        if (gross <= 8999)  return { ptAmount: 80,  stateCode: "GJ", slab: "₹6,000–₹8,999 → ₹80 — GJ PT Act 1976 [VERIFY]" };
+        if (gross <= 11999) return { ptAmount: 150, stateCode: "GJ", slab: "₹9,000–₹11,999 → ₹150 — GJ PT Act 1976 [VERIFY]" };
+        return              { ptAmount: 200, stateCode: "GJ", slab: "≥₹12,000 → ₹200 — GJ PT Act 1976 [VERIFY]" };
+      }
 
-    // Above threshold (> ₹10k for men, > ₹25k for women)
-    const ptAmount = isFeb ? 300 : 200;
-    return {
-      ptAmount,
-      slab: isFeb ? "February Adjustment (₹300) — Annual Cap ₹2,500" : "Standard Month (₹200)",
-    };
+      case "KA": {
+        // Karnataka PT Act 1976 (amended 2017)
+        if (gross <= 14999) return { ptAmount: 0,   stateCode: "KA", slab: "Nil (≤₹14,999) — KA PT Act 1976" };
+        if (gross <= 29999) return { ptAmount: 150, stateCode: "KA", slab: "₹15,000–₹29,999 → ₹150 — KA PT Act 1976" };
+        return              { ptAmount: 200, stateCode: "KA", slab: "≥₹30,000 → ₹200 — KA PT Act 1976" };
+      }
+
+      case "TN":
+        // Tamil Nadu: No PT since 1988
+        return { ptAmount: 0, stateCode: "TN", slab: "No PT in Tamil Nadu (abolished 1988)" };
+
+      case "AP":
+      case "TS":
+        // Andhra Pradesh / Telangana: PT exists but rates require state-specific gazette verification.
+        // Flagged as unverified — returns 0 until HR configures the correct slabs.
+        return { ptAmount: 0, stateCode: state, slab: `${state} PT: Rate not configured — compliance review required` };
+
+      case "WB":
+        // West Bengal: PT exists; slab changes frequently.
+        return { ptAmount: 0, stateCode: "WB", slab: "WB PT: Rate not configured — compliance review required" };
+
+      case "OTHER":
+      case "NONE":
+      default:
+        return { ptAmount: 0, stateCode: state, slab: "Professional Tax: Not Applicable" };
+    }
   }
 
   /**
