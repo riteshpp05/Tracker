@@ -64,7 +64,11 @@ export const CompanyHolidaysPage = () => {
     }
     setActionLoading(true);
     try {
-      const res = await enterpriseService.addHoliday(formData);
+      const res = await enterpriseService.addHoliday({
+        ...formData,
+        holidayName: formData.name,
+        holidayType: formData.type,
+      });
       if (res.success) {
         toast.success("Holiday added to corporate calendar");
         setIsAddModalOpen(false);
@@ -86,12 +90,13 @@ export const CompanyHolidaysPage = () => {
 
   const filteredHolidays = holidays.filter((h) => {
     if (selectedType === "ALL") return true;
-    return h.type === selectedType;
+    const type = h.type || h.holiday_type;
+    return type === selectedType;
   });
 
   // Calculate upcoming holiday
   const today = new Date().toISOString().split("T")[0];
-  const upcomingHoliday = holidays.find((h) => h.holiday_date >= today);
+  const upcomingHoliday = holidays.find((h) => (h.holiday_date || h.holidayDate) >= today);
 
   const getDayName = (dateStr) => {
     const d = new Date(dateStr);
@@ -263,22 +268,22 @@ export const CompanyHolidaysPage = () => {
                 <div className="flex items-center justify-between gap-2">
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                      holiday.type === "NATIONAL"
+                      (holiday.type || holiday.holiday_type) === "NATIONAL"
                         ? "bg-rose-50 text-rose-700 border border-rose-200"
-                        : holiday.type === "STATE"
+                        : (holiday.type || holiday.holiday_type) === "STATE"
                         ? "bg-blue-50 text-blue-700 border border-blue-200"
                         : "bg-amber-50 text-amber-700 border border-amber-200"
                     }`}
                   >
-                    {holiday.type}
+                    {holiday.type || holiday.holiday_type}
                   </span>
                   <span className="text-xs text-slate-400 font-medium">
-                    {getDayName(holiday.holiday_date)}
+                    {getDayName(holiday.holiday_date || holiday.holidayDate)}
                   </span>
                 </div>
 
                 <h3 className="font-bold text-slate-900 text-base leading-snug truncate">
-                  {holiday.name}
+                  {holiday.name || holiday.holiday_name}
                 </h3>
 
                 <p className="text-xs text-slate-500 line-clamp-2">

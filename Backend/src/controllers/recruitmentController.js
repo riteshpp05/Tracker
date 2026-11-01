@@ -408,6 +408,15 @@ export const onboardCandidate = async (req, res) => {
       [newEmp.employee_id, pan, uan]
     );
 
+    // Auto-create active salary assignment for new hire
+    const baseMonthly = Math.round(Number(netTarget) * 0.5);
+    await client.query(
+      `INSERT INTO employee_salary_assignments (
+         employee_id, structure_id, from_date, base_monthly_salary, ctc_annual, is_active, notes
+       ) VALUES ($1, 1, CURRENT_DATE, $2, $3, TRUE, 'Auto-provisioned on candidate onboarding')`,
+      [newEmp.employee_id, baseMonthly, ctcApproved]
+    );
+
     // Initialize leave balances for the new employee
     await client.query(
       `INSERT INTO leave_balances (employee_id, leave_type_id, year, total_allocated, used_days, pending_days)

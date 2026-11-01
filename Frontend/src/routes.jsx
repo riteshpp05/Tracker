@@ -293,6 +293,14 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/my-slips"
+          element={
+            <ProtectedRoute roles={["EMPLOYEE", "ADMIN", "HR", "MANAGER"]}>
+              <EmployeePayslipsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ============================================ */}
         {/* MANAGER ROUTES */}

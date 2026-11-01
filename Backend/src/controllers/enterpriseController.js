@@ -9,7 +9,7 @@ class EnterpriseController {
     try {
       const year = Number(req.query.year) || new Date().getFullYear();
       const result = await pool.query(
-        `SELECT * FROM company_holidays WHERE year = $1 ORDER BY holiday_date ASC`,
+        `SELECT *, holiday_name AS name, holiday_type AS type FROM company_holidays WHERE year = $1 ORDER BY holiday_date ASC`,
         [year]
       );
       res.json({ success: true, data: result.rows });
@@ -24,8 +24,19 @@ class EnterpriseController {
    */
   async addHoliday(req, res) {
     try {
-      const { holidayName, holidayDate, dayOfWeek, holidayType, description, isPaid } = req.body;
-      const year = new Date(holidayDate).getFullYear();
+      const name = req.body.holidayName || req.body.name;
+      const date = req.body.holidayDate || req.body.date;
+      const type = req.body.holidayType || req.body.type || "STATE";
+      const description = req.body.description || "";
+      const isPaid = req.body.isPaid !== undefined ? req.body.isPaid : (req.body.isOptional !== true);
+
+      if (!name || !date) {
+        return res.status(400).json({ success: false, error: "Holiday name and date are required" });
+      }
+
+      const holidayDateObj = new Date(date);
+      const year = holidayDateObj.getFullYear();
+      const dayOfWeek = req.body.dayOfWeek || holidayDateObj.toLocaleDateString("en-US", { weekday: "long" });
 
       const insertRes = await pool.query(
         `INSERT INTO company_holidays (holiday_name, holiday_date, day_of_week, holiday_type, description, year, is_paid)
@@ -35,8 +46,8 @@ class EnterpriseController {
            holiday_type = EXCLUDED.holiday_type,
            description = EXCLUDED.description,
            is_paid = EXCLUDED.is_paid
-         RETURNING *`,
-        [holidayName, holidayDate, dayOfWeek, holidayType || "MANDATORY", description, year, isPaid !== false]
+         RETURNING *, holiday_name AS name, holiday_type AS type`,
+        [name, date, dayOfWeek, type, description, year, isPaid]
       );
 
       res.status(201).json({
@@ -46,7 +57,7 @@ class EnterpriseController {
       });
     } catch (err) {
       console.error("Error in addHoliday:", err);
-      res.status(500).json({ success: false, error: "Failed to add holiday" });
+      res.status(500).json({ success: false, error: "Failed to add holiday: " + err.message });
     }
   }
 
