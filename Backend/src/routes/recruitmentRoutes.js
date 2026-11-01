@@ -20,6 +20,7 @@ router.patch("/jobs/:id", updateJobPosting);
 
 router.get("/applications", getAllApplications);
 router.patch("/applications/:id/stage", updateApplicationStage);
+router.put("/applications/:id/stage", updateApplicationStage);
 router.post("/applications/:id/onboard", onboardCandidate);
 
 export default router;

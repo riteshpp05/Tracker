@@ -20,7 +20,7 @@
 
 import ExcelJS   from "exceljs";
 import db        from "../../config/database.js";
-import { getPolicyByCode } from "./locationPolicyService.js";
+import { getPolicyByCode, listPolicies } from "./locationPolicyService.js";
 import payrollValidationService from "./payrollValidationService.js";
 import bankExportService        from "./bankPaymentExportService.js";
 
@@ -131,7 +131,7 @@ async function parseXlsx(buffer) {
  * @param {number} rowNum  1-based row number (for error messages)
  * @returns {{ valid: boolean, errors: object[], data: object }}
  */
-async function validateRow(row, rowNum) {
+async function validateRow(row, rowNum, policyMap = null) {
   const errors = [];
 
   // ── Required fields ──────────────────────────────────────────────────
@@ -195,7 +195,8 @@ async function validateRow(row, rowNum) {
   // ── Location policy lookup ────────────────────────────────────────────
   let locationPolicyId = null;
   if (row.location_code) {
-    const policy = await getPolicyByCode(row.location_code);
+    const code = String(row.location_code).trim().toUpperCase();
+    const policy = policyMap ? policyMap.get(code) : await getPolicyByCode(code);
     if (!policy) {
       errors.push({ row: rowNum, field: "location_code", message: `location_code '${row.location_code}' does not match any active location policy` });
     } else {
@@ -261,8 +262,17 @@ export async function validateBulkRows(rows) {
   const valid  = [];
   const errors = [];
 
+  // Pre-fetch all policies once into a map for fast in-memory validation
+  let policyMap = new Map();
+  try {
+    const allPolicies = await listPolicies({ includeInactive: false });
+    policyMap = new Map(allPolicies.map((p) => [String(p.code).toUpperCase(), p]));
+  } catch (err) {
+    console.warn("Could not pre-fetch location policies for bulk validation:", err.message);
+  }
+
   for (let i = 0; i < rows.length; i++) {
-    const result = await validateRow(rows[i], i + 2); // +2: 1-based + skip header
+    const result = await validateRow(rows[i], i + 2, policyMap); // +2: 1-based + skip header
     if (result.valid) {
       valid.push(result.data);
     } else {

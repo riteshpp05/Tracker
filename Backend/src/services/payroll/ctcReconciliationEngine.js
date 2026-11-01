@@ -388,12 +388,19 @@ class CtcReconciliationEngine {
     const hra = this.round(basicPlusDA * hraPct / 100);
 
     // ── 4. Fixed allowances ─────────────────────────────────────────────────
-    const washing     = this.round(Number(policy.washing_allowance)   || 0);
-    const education   = this.round(Number(policy.education_allowance) || 0);
-    const conveyance  = this.round(Number(policy.conveyance_allowance)|| 0);
-    const medical     = this.round(Number(policy.medical_allowance)   || 0);
-    const books       = this.round(Number(policy.books_periodicals)   || 0);
-    const fixedAllowances = washing + education + conveyance + medical + books;
+    const allowanceMap = {
+      washing: Number(policy.washing_allowance) || 0,
+      education: Number(policy.education_allowance) || 0,
+      conveyance: Number(policy.conveyance_allowance) || 0,
+      medical: Number(policy.medical_allowance) || 0,
+      books: Number(policy.books_periodicals) || 0,
+    };
+    const washing    = this.round(allowanceMap.washing);
+    const education  = this.round(allowanceMap.education);
+    const conveyance = this.round(allowanceMap.conveyance);
+    const medical    = this.round(allowanceMap.medical);
+    const books      = this.round(allowanceMap.books);
+    const fixedAllowances = this.round(Object.values(allowanceMap).reduce((sum, v) => sum + (Number(v) || 0), 0));
 
     // ── 5. Other Allowance (balancing plug) ─────────────────────────────────
     const otherAllowance = this.round(net - basicPlusDA - hra - fixedAllowances);

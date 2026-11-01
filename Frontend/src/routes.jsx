@@ -398,6 +398,22 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="/recruitment"
+          element={
+            <ProtectedRoute roles={["HR", "ADMIN"]}>
+              <HRRecruitmentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/recruitment"
+          element={
+            <ProtectedRoute roles={["HR", "ADMIN"]}>
+              <HRRecruitmentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/hr/leaves"
           element={
             <ProtectedRoute roles={["HR", "ADMIN"]}>

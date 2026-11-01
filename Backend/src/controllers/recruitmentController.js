@@ -6,14 +6,30 @@ export const getAllRecruitmentJobs = async (req, res) => {
   try {
     const query = `
       SELECT 
-        j.*,
-        d.name AS department_name,
+        COALESCE(rj.id, j.id) AS id,
+        COALESCE(rj.title, j.title) AS title,
+        COALESCE(rj.job_code, j.slug, j.id::text) AS slug,
+        COALESCE(rj.job_code, j.slug) AS job_code,
+        COALESCE(rj.department, d.name, 'Operations') AS department_name,
+        COALESCE(rj.location_name, j.location, 'HQ') AS location,
+        COALESCE(rj.employment_type, j.employment_type, 'FULL_TIME') AS employment_type,
+        COALESCE(j.experience_level, 'Mid-Level') AS experience_level,
+        COALESCE(rj.compensation_band, j.salary_range, 'Competitive') AS salary_range,
+        COALESCE(rj.description, j.description) AS description,
+        COALESCE(rj.requirements, j.requirements) AS requirements,
+        COALESCE(rj.status, j.status, 'OPEN') AS status,
+        COALESCE(rj.created_at, j.created_at) AS created_at,
         COUNT(ja.id)::int AS applicant_count
-      FROM job_postings j
+      FROM recruitment_jobs rj
+      FULL OUTER JOIN job_postings j ON j.title = rj.title
       LEFT JOIN departments d ON d.id = j.department_id
-      LEFT JOIN job_applications ja ON ja.job_id = j.id
-      GROUP BY j.id, d.name
-      ORDER BY j.created_at DESC
+      LEFT JOIN job_applications ja ON (ja.job_id = rj.id OR ja.job_id = j.id)
+      GROUP BY rj.id, j.id, rj.title, j.title, rj.job_code, j.slug, rj.department, d.name,
+               rj.location_name, j.location, rj.employment_type, j.employment_type,
+               j.experience_level, rj.compensation_band, j.salary_range,
+               rj.description, j.description, rj.requirements, j.requirements,
+               rj.status, j.status, rj.created_at, j.created_at
+      ORDER BY created_at DESC
     `;
     const result = await pool.query(query);
     res.json(result.rows);
@@ -149,30 +165,51 @@ export const getAllApplications = async (req, res) => {
 
     let query = `
       SELECT 
-        ja.*,
-        jp.title AS job_title,
-        jp.slug AS job_slug,
-        d.name AS department_name
+        ja.id,
+        ja.job_id,
+        COALESCE(ja.full_name, ja.candidate_name) AS candidate_name,
+        COALESCE(ja.full_name, ja.candidate_name) AS full_name,
+        ja.email,
+        ja.phone,
+        ja.resume_url,
+        ja.portfolio_url,
+        COALESCE(ja.cover_note, ja.cover_letter) AS cover_letter,
+        COALESCE(ja.cover_note, ja.cover_letter) AS cover_note,
+        ja.stage,
+        ja.tracking_code,
+        ja.experience_years,
+        ja.hr_notes,
+        ja.rating,
+        ja.interview_score,
+        ja.interview_date,
+        ja.hired_employee_id,
+        ja.onboarded_user_id,
+        ja.created_at,
+        ja.updated_at,
+        COALESCE(rj.title, jp.title, 'General Position') AS job_title,
+        COALESCE(rj.job_code, jp.slug) AS job_slug,
+        COALESCE(rj.department, d.name, 'Operations') AS department_name
       FROM job_applications ja
-      JOIN job_postings jp ON jp.id = ja.job_id
+      LEFT JOIN recruitment_jobs rj ON rj.id = ja.job_id
+      LEFT JOIN job_postings jp ON jp.id = ja.job_id
       LEFT JOIN departments d ON d.id = jp.department_id
       WHERE 1=1
     `;
     const params = [];
 
-    if (jobId) {
+    if (jobId && jobId !== "All") {
       params.push(jobId);
-      query += ` AND ja.job_id = $${params.length}`;
+      query += ` AND (ja.job_id = $${params.length} OR rj.id = $${params.length} OR jp.id = $${params.length})`;
     }
 
-    if (stage) {
+    if (stage && stage !== "All") {
       params.push(stage);
-      query += ` AND ja.stage = $${params.length}`;
+      query += ` AND UPPER(ja.stage) = UPPER($${params.length})`;
     }
 
     if (search) {
       params.push(`%${search}%`);
-      query += ` AND (ja.candidate_name ILIKE $${params.length} OR ja.email ILIKE $${params.length})`;
+      query += ` AND (ja.candidate_name ILIKE $${params.length} OR ja.full_name ILIKE $${params.length} OR ja.email ILIKE $${params.length} OR ja.tracking_code ILIKE $${params.length})`;
     }
 
     query += " ORDER BY ja.created_at DESC";
@@ -185,25 +222,33 @@ export const getAllApplications = async (req, res) => {
   }
 };
 
-// PATCH /api/recruitment/applications/:id/stage
+// PUT / PATCH /api/recruitment/applications/:id/stage
 export const updateApplicationStage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { stage, hrNotes, rating, interviewDate } = req.body;
+    const { stage, hrNotes, rating, interviewScore, interviewDate } = req.body;
 
     const validStages = [
-      "Applied",
-      "Screening",
-      "Interview",
-      "Assessment",
-      "Offer",
-      "Hired",
-      "Rejected",
-      "Withdrawn",
+      "APPLIED",
+      "SCREENING",
+      "TECHNICAL",
+      "HR",
+      "OFFER",
+      "ONBOARDED",
+      "REJECTED",
+      "INTERVIEW",
+      "ASSESSMENT",
+      "HIRED",
+      "WITHDRAWN",
     ];
 
-    if (stage && !validStages.includes(stage)) {
-      return res.status(400).json({ error: `Invalid stage. Must be one of: ${validStages.join(", ")}` });
+    let targetStage = stage;
+    if (stage) {
+      const upper = stage.toUpperCase();
+      if (!validStages.includes(upper)) {
+        return res.status(400).json({ error: `Invalid stage. Must be one of: ${validStages.join(", ")}` });
+      }
+      targetStage = upper;
     }
 
     const query = `
@@ -211,16 +256,18 @@ export const updateApplicationStage = async (req, res) => {
       SET stage = COALESCE($1, stage),
           hr_notes = COALESCE($2, hr_notes),
           rating = COALESCE($3, rating),
-          interview_date = COALESCE($4, interview_date),
+          interview_score = COALESCE($4, interview_score),
+          interview_date = COALESCE($5, interview_date),
           updated_at = NOW()
-      WHERE id = $5
+      WHERE id = $6
       RETURNING *
     `;
 
     const result = await pool.query(query, [
-      stage,
+      targetStage,
       hrNotes,
       rating,
+      interviewScore !== undefined ? interviewScore : null,
       interviewDate ? new Date(interviewDate) : null,
       id,
     ]);
@@ -242,15 +289,36 @@ export const onboardCandidate = async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { departmentId, designation, managerId, initialPassword } = req.body;
+    const {
+      departmentId,
+      designation,
+      managerId,
+      initialPassword,
+      locationPolicyId,
+      location_policy_id,
+      salaryMode,
+      salary_mode,
+      targetNetMonthly,
+      target_net_monthly,
+      approvedAnnualCtc,
+      approved_annual_ctc,
+      panNumber,
+      pan_number,
+      uanNumber,
+      uan_number,
+    } = req.body;
 
     await client.query("BEGIN");
 
     const appRes = await client.query(
-      `SELECT ja.*, jp.department_id AS job_department_id
+      `SELECT ja.*, 
+              COALESCE(rj.department, d.name, 'Engineering') AS job_department_name,
+              rj.location_policy_id AS rj_policy_id
        FROM job_applications ja
-       JOIN job_postings jp ON jp.id = ja.job_id
-       WHERE ja.id = $1 FOR UPDATE`,
+       LEFT JOIN recruitment_jobs rj ON rj.id = ja.job_id
+       LEFT JOIN job_postings jp ON jp.id = ja.job_id
+       LEFT JOIN departments d ON d.id = jp.department_id
+       WHERE ja.id = $1 FOR UPDATE OF ja`,
       [id]
     );
 
@@ -261,13 +329,14 @@ export const onboardCandidate = async (req, res) => {
 
     const application = appRes.rows[0];
 
-    if (application.hired_employee_id) {
+    if (application.hired_employee_id || application.onboarded_user_id) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "Candidate has already been onboarded as an employee." });
     }
 
     // Split candidate name
-    const parts = application.candidate_name.trim().split(" ");
+    const rawName = (application.full_name || application.candidate_name || "New Employee").trim();
+    const parts = rawName.split(" ");
     const firstName = parts[0];
     const lastName = parts.slice(1).join(" ") || "Employee";
 
@@ -280,13 +349,20 @@ export const onboardCandidate = async (req, res) => {
     const pwd = initialPassword || "Welcome@Shende2026";
     const passwordHash = await bcrypt.hash(pwd, 10);
 
+    // Selected or fallback location policy
+    const policyId = locationPolicyId || location_policy_id || application.rj_policy_id || null;
+    const calcMode = salaryMode || salary_mode || "MODE_A_NET_TO_CTC";
+    const netTarget = targetNetMonthly || target_net_monthly || 26000;
+    const ctcApproved = approvedAnnualCtc || approved_annual_ctc || 420000;
+
     // Insert new employee
-    const targetDept = departmentId || application.job_department_id || 3;
+    const targetDept = departmentId || 3;
     const empInsertQuery = `
       INSERT INTO employees (
         employee_code, first_name, last_name, email, password_hash,
-        role, department, designation, module_manager_id, phone, doj, is_active
-      ) VALUES ($1, $2, $3, $4, $5, 4, $6, $7, $8, $9, CURRENT_DATE, TRUE)
+        role, department, designation, module_manager_id, phone, doj, is_active,
+        location_policy_id, calculation_mode, target_net_monthly, approved_annual_ctc
+      ) VALUES ($1, $2, $3, $4, $5, 4, $6, $7, $8, $9, CURRENT_DATE, TRUE, $10, $11, $12, $13)
       RETURNING *
     `;
 
@@ -300,16 +376,36 @@ export const onboardCandidate = async (req, res) => {
       designation || "Engineering Associate",
       managerId || null,
       application.phone,
+      policyId,
+      calcMode,
+      netTarget,
+      ctcApproved,
     ]);
 
     const newEmp = empResult.rows[0];
 
-    // Link back to application and set stage to Hired
+    // Link back to application and set stage to ONBOARDED
     await client.query(
       `UPDATE job_applications
-       SET stage = 'Hired', hired_employee_id = $1, updated_at = NOW()
+       SET stage = 'ONBOARDED', 
+           hired_employee_id = $1, 
+           onboarded_user_id = $1, 
+           updated_at = NOW()
        WHERE id = $2`,
       [newEmp.employee_id, id]
+    );
+
+    // Populate statutory profile
+    const pan = (panNumber || pan_number || "AAACS1234P").toUpperCase();
+    const uan = (uanNumber || uan_number || "100900800700");
+    await client.query(
+      `INSERT INTO employee_statutory_profiles (
+         employee_id, pan_number, uan_number, pf_member_joined_after_sep_2014, esic_enrolled_in_current_period
+       ) VALUES ($1, $2, $3, TRUE, FALSE)
+       ON CONFLICT (employee_id) DO UPDATE SET
+         pan_number = EXCLUDED.pan_number,
+         uan_number = EXCLUDED.uan_number`,
+      [newEmp.employee_id, pan, uan]
     );
 
     // Initialize leave balances for the new employee
@@ -329,19 +425,30 @@ export const onboardCandidate = async (req, res) => {
         req.user.id,
         `${req.user.name || "HR Manager"}`,
         newEmp.employee_id,
-        JSON.stringify({ candidateName: application.candidate_name, employeeCode, email: application.email }),
+        JSON.stringify({
+          candidateName: rawName,
+          employeeCode,
+          email: application.email,
+          policyId,
+          calcMode,
+        }),
       ]
     );
 
     await client.query("COMMIT");
 
     res.status(201).json({
-      message: `Candidate ${application.candidate_name} onboarded successfully as ${employeeCode}!`,
+      success: true,
+      message: `Candidate ${rawName} onboarded successfully as ${employeeCode}!`,
+      emp_code: employeeCode,
+      employeeCode: employeeCode,
       employee: {
         id: newEmp.employee_id,
         employeeCode: newEmp.employee_code,
         name: `${newEmp.first_name} ${newEmp.last_name}`,
         email: newEmp.email,
+        location_policy_id: newEmp.location_policy_id,
+        calculation_mode: newEmp.calculation_mode,
       },
     });
   } catch (error) {

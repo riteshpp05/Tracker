@@ -8,13 +8,13 @@
     "build": "cd Frontend && npm install && npm run build",
     "db:init": "node scripts/init-cloud-db.js",
     "test": "node Backend/tests/payrollEngine.test.js && node Backend/tests/coreModulesApi.test.js",
+    "test:e2e": "npx playwright test",
     "start": "node Backend/src/server.js",
     "dev:backend": "cd Backend && npm run dev",
     "dev:frontend": "cd Frontend && npm run dev"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "body-parser": "^2.2.1",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -31,5 +31,8 @@
     "nodemailer": "^7.0.13",
     "pg": "^8.11.3",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }

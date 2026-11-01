@@ -89,20 +89,36 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] flex items-center justify-center px-4">
-      <div className="w-full max-w-[400px] space-y-6">
-        {/* Logo + wordmark */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center">
-            <img src="/favicon.svg" alt="Shende Industries" className="w-10 h-10 rounded-xl" />
+    <div className="min-h-screen bg-[#F7F8FA] flex flex-col justify-between">
+      {/* Top Navigation Bar with Public Careers Action Pill */}
+      <header className="w-full px-6 py-4 flex items-center justify-between border-b border-[#E5E7EB] bg-white/80 backdrop-blur-sm">
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/favicon.svg" alt="Shende Industries" className="w-7 h-7 rounded-lg" />
+          <span className="text-sm font-bold text-[#172033] tracking-tight">Shende Industries</span>
+        </Link>
+        <Link
+          to="/careers"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#6558D9] bg-indigo-50 border border-indigo-200/80 hover:bg-indigo-100 transition-colors shadow-2xs"
+        >
+          <span>Looking for opportunities? View Open Positions &amp; Apply</span>
+          <span aria-hidden="true">&rarr;</span>
+        </Link>
+      </header>
+
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-[400px] space-y-6">
+          {/* Logo + wordmark */}
+          <div className="text-center space-y-2">
+            <div className="flex justify-center">
+              <img src="/favicon.svg" alt="Shende Industries" className="w-10 h-10 rounded-xl" />
+            </div>
+            <h1 className="text-[22px] font-bold text-[#172033] tracking-tight">
+              Shende Industries Portal
+            </h1>
+            <p className="text-[13px] text-[#667085]">
+              Enter your corporate credentials to access your operations &amp; payroll workspace.
+            </p>
           </div>
-          <h1 className="text-[22px] font-bold text-[#172033] tracking-tight">
-            Shende Industries Portal
-          </h1>
-          <p className="text-[13px] text-[#667085]">
-            Enter your corporate credentials to access your operations &amp; payroll workspace.
-          </p>
-        </div>
 
         {/* Main card */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-sm space-y-5">
@@ -201,5 +217,6 @@ export function Login() {
         </div>
       </div>
     </div>
+  </div>
   );
 }

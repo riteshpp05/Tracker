@@ -28,3 +28,7 @@ Thumbs.db
 # Uploads
 Backend/uploads/*
 !Backend/uploads/.gitkeep
+
+# Playwright Test Artifacts
+playwright-report/
+test-results/

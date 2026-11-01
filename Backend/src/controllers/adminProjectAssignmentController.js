@@ -1,5 +1,5 @@
 import pool from "../config/database.js";
-import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 
 // ===============================================
 // GET ALL ACTIVE PROJECTS (For selection)
@@ -146,7 +146,7 @@ export const assignProjectsToManagers = async (req, res) => {
               );
               assignments.push(updated.rows[0]);
             } else {
-              const id = uuidv4();
+              const id = crypto.randomUUID();
               const inserted = await client.query(
                 `INSERT INTO ticket_manager_scope 
                    (id, project_id, ticket_id, manager_id, assigned_by, assigned_date, is_active)
@@ -280,7 +280,7 @@ export const assignTicketsToManager = async (req, res) => {
         );
         assignments.push(updated.rows[0]);
       } else {
-        const id = uuidv4();
+        const id = crypto.randomUUID();
         const inserted = await client.query(
           `INSERT INTO ticket_manager_scope 
              (id, project_id, ticket_id, manager_id, assigned_by, assigned_date, is_active)

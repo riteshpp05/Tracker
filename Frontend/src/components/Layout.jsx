@@ -106,6 +106,8 @@ export const Layout = ({ children }) => {
         items: [
           { name: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
           { name: "Employees", href: "/admin/users", icon: Users },
+          { name: "Recruitment Pipeline", href: "/recruitment", icon: UserPlus },
+          { name: "Recruitment Pipeline", href: "/recruitment", icon: UserPlus },
           { name: "Clients", href: "/admin/clients", icon: Briefcase },
           { name: "Projects", href: "/admin/projects", icon: FolderOpen },
         ],
@@ -165,6 +167,7 @@ export const Layout = ({ children }) => {
         items: [
           { name: "Dashboard", href: "/hr/dashboard", icon: LayoutDashboard },
           { name: "Employees", href: "/admin/users", icon: Users },
+          { name: "Recruitment Pipeline", href: "/recruitment", icon: UserPlus },
         ],
       },
       {

@@ -52,6 +52,7 @@ export default function HRRecruitmentPage() {
   const [applications, setApplications] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
+  const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -67,18 +68,24 @@ export default function HRRecruitmentPage() {
   // Forms
   const [onboardForm, setOnboardForm] = useState({
     designation: "",
-    departmentId: "",
+    departmentId: "3",
     managerId: "",
+    locationPolicyId: "",
+    salaryMode: "MODE_A_NET_TO_CTC",
+    targetNetMonthly: 26000,
+    approvedAnnualCtc: 420000,
+    panNumber: "AAACS1234P",
+    uanNumber: "100900800700",
     initialPassword: "Welcome@Shende2026",
   });
 
   const [newJobForm, setNewJobForm] = useState({
     title: "",
     departmentId: "3",
-    location: "Chicago, IL (Hybrid / On-site)",
+    location: "Corporate Operations",
     employmentType: "Full-time",
     experienceLevel: "Mid-Level",
-    salaryRange: "$85,000 - $110,000",
+    salaryRange: "₹8,00,000 - ₹12,00,000",
     description: "",
     requirements: "",
     responsibilities: "",
@@ -92,11 +99,12 @@ export default function HRRecruitmentPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [jobsRes, appsRes, deptsRes, empsRes] = await Promise.all([
+      const [jobsRes, appsRes, deptsRes, empsRes, polsRes] = await Promise.all([
         api.get("/recruitment/jobs").catch(() => ({ data: { jobs: [] } })),
         api.get("/recruitment/applications").catch(() => ({ data: { applications: [] } })),
         api.get("/employees/departments").catch(() => ({ data: [] })),
         api.get("/employees").catch(() => ({ data: [] })),
+        api.get("/payroll/location-policies").catch(() => ({ data: { policies: [] } })),
       ]);
 
       const jobList = Array.isArray(jobsRes.data) ? jobsRes.data : jobsRes.data?.jobs || [];
@@ -107,12 +115,50 @@ export default function HRRecruitmentPage() {
       
       const empList = Array.isArray(empsRes.data) ? empsRes.data : empsRes.data?.employees || [];
       setManagers(empList.filter((e) => e.role_name === "MANAGER" || e.role === "MANAGER"));
+
+      const polList = Array.isArray(polsRes.data) ? polsRes.data : polsRes.data?.policies || [];
+      setPolicies(polList);
     } catch (err) {
       console.error("Recruitment fetch error:", err);
       toast.error("Failed to load recruitment data");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getNextStage = (currStage) => {
+    const upper = (currStage || "").toUpperCase();
+    if (upper === "SCREENING" || upper === "APPLIED") return "TECHNICAL";
+    if (upper === "TECHNICAL" || upper === "INTERVIEW") return "HR";
+    if (upper === "HR" || upper === "ASSESSMENT") return "OFFER";
+    if (upper === "OFFER") return "ONBOARD";
+    return null;
+  };
+
+  const handleAdvanceStage = async (app) => {
+    const next = getNextStage(app.stage);
+    if (!next) return;
+    if (next === "ONBOARD") {
+      openOnboardModal(app);
+      return;
+    }
+    await handleStageChange(app.id, next);
+  };
+
+  const openOnboardModal = (app) => {
+    setOnboardModalApp(app);
+    setOnboardForm({
+      designation: app.job_title || "Engineering Associate",
+      departmentId: app.department_id ? String(app.department_id) : "3",
+      managerId: managers[0]?.employee_id || "",
+      locationPolicyId: policies[0]?.id || "",
+      salaryMode: "MODE_A_NET_TO_CTC",
+      targetNetMonthly: 26000,
+      approvedAnnualCtc: 420000,
+      panNumber: "AAACS1234P",
+      uanNumber: "100900800700",
+      initialPassword: "Welcome@Shende2026",
+    });
   };
 
   const handleStageChange = async (appId, newStage) => {
@@ -384,7 +430,7 @@ export default function HRRecruitmentPage() {
                         <td className="py-3 px-4 text-[11px] text-slate-400">
                           {new Date(app.created_at).toLocaleDateString()}
                         </td>
-                        <td className="py-3 px-4 text-right space-x-2">
+                        <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
                           <Button
                             variant="outline"
                             size="sm"
@@ -394,25 +440,27 @@ export default function HRRecruitmentPage() {
                             View Details
                           </Button>
 
-                          {!app.hired_employee_id && (
+                          {!app.hired_employee_id && app.stage !== "ONBOARDED" && app.stage !== "REJECTED" && (
                             <Button
                               size="sm"
-                              onClick={() => {
-                                setOnboardModalApp(app);
-                                setOnboardForm({
-                                  designation: app.job_title || "Engineering Associate",
-                                  departmentId: app.department_id ? String(app.department_id) : "3",
-                                  managerId: managers[0]?.employee_id || "",
-                                  initialPassword: "Welcome@Shende2026",
-                                });
-                              }}
+                              onClick={() => handleAdvanceStage(app)}
+                              className="text-xs h-7 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white gap-1"
+                            >
+                              <span>Advance ({getNextStage(app.stage) || "Next"})</span>
+                            </Button>
+                          )}
+
+                          {!app.hired_employee_id && app.stage !== "ONBOARDED" && (
+                            <Button
+                              size="sm"
+                              onClick={() => openOnboardModal(app)}
                               className="text-xs h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                             >
                               <UserPlus className="w-3 h-3" />
-                              1-Click Onboard
+                              Hire &amp; Onboard to Payroll
                             </Button>
                           )}
-                          {app.hired_employee_id && (
+                          {(app.hired_employee_id || app.stage === "ONBOARDED") && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 px-2 py-1 bg-emerald-50 rounded-md">
                               <CheckCircle2 className="w-3 h-3" /> Onboarded
                             </span>
@@ -702,6 +750,91 @@ export default function HRRecruitmentPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Location Policy &amp; State
+                  </label>
+                  <select
+                    value={onboardForm.locationPolicyId}
+                    onChange={(e) =>
+                      setOnboardForm({ ...onboardForm, locationPolicyId: e.target.value })
+                    }
+                    className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg"
+                  >
+                    <option value="">Default Location Policy</option>
+                    {policies.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.policy_name} ({p.state_code || "MH"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Payroll Calculation Mode
+                  </label>
+                  <select
+                    value={onboardForm.salaryMode}
+                    onChange={(e) =>
+                      setOnboardForm({ ...onboardForm, salaryMode: e.target.value })
+                    }
+                    className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg"
+                  >
+                    <option value="MODE_A_NET_TO_CTC">Mode A: Take-Home Net to CTC</option>
+                    <option value="MODE_B_CTC_REVERSE">Mode B: Annual CTC Reverse</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {onboardForm.salaryMode === "MODE_A_NET_TO_CTC" ? (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Monthly In-Hand Net Salary (₹)
+                    </label>
+                    <Input
+                      type="number"
+                      required
+                      value={onboardForm.targetNetMonthly}
+                      onChange={(e) =>
+                        setOnboardForm({ ...onboardForm, targetNetMonthly: Number(e.target.value) })
+                      }
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Approved Annual CTC (₹)
+                    </label>
+                    <Input
+                      type="number"
+                      required
+                      value={onboardForm.approvedAnnualCtc}
+                      onChange={(e) =>
+                        setOnboardForm({ ...onboardForm, approvedAnnualCtc: Number(e.target.value) })
+                      }
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Employee PAN Number
+                  </label>
+                  <Input
+                    value={onboardForm.panNumber}
+                    onChange={(e) =>
+                      setOnboardForm({ ...onboardForm, panNumber: e.target.value.toUpperCase() })
+                    }
+                    className="h-9 text-xs font-mono"
+                  />
                 </div>
               </div>
 

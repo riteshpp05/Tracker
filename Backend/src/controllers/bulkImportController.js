@@ -68,7 +68,7 @@ export async function previewImport(req, res) {
         invalidRows:  invalidRowNums.length,
         errorCount:   errors.length,
       },
-      validRows,
+      validRows: valid,
       errors,
       readyToImport: errors.length === 0,
     });

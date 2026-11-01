@@ -254,3 +254,284 @@ export const submitContactInquiry = async (req, res) => {
     res.status(500).json({ error: "Failed to record inquiry" });
   }
 };
+
+// =====================================================================
+// DEDICATED PUBLIC CAREERS ATS PORTAL ENDPOINTS (SECTION 3.2)
+// =====================================================================
+
+// GET /api/public/careers/jobs
+export const getPublicCareersJobs = async (req, res) => {
+  try {
+    const { department, search } = req.query;
+
+    let query = `
+      SELECT 
+        id, 
+        job_code, 
+        title, 
+        department, 
+        location_name, 
+        employment_type, 
+        compensation_band, 
+        description, 
+        requirements, 
+        status, 
+        created_at
+      FROM recruitment_jobs
+      WHERE status = 'OPEN'
+    `;
+    const params = [];
+
+    if (department && department !== "ALL") {
+      params.push(department);
+      query += ` AND department ILIKE $${params.length}`;
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (title ILIKE $${params.length} OR description ILIKE $${params.length} OR department ILIKE $${params.length})`;
+    }
+
+    query += " ORDER BY created_at ASC";
+
+    const result = await pool.query(query, params);
+
+    // Fallback: if recruitment_jobs is empty, query job_postings
+    if (result.rows.length === 0) {
+      const fallbackQuery = `
+        SELECT 
+          j.id, 
+          COALESCE(j.slug, j.id::text) AS job_code, 
+          j.title, 
+          COALESCE(d.name, 'Engineering') AS department, 
+          j.location AS location_name, 
+          j.employment_type, 
+          COALESCE(j.salary_range, 'Competitive') AS compensation_band, 
+          j.description, 
+          j.requirements, 
+          'OPEN' AS status, 
+          j.created_at
+        FROM job_postings j
+        LEFT JOIN departments d ON d.id = j.department_id
+        WHERE j.status = 'Published'
+        ORDER BY j.created_at DESC
+      `;
+      const fallbackResult = await pool.query(fallbackQuery);
+      return res.json(fallbackResult.rows);
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("getPublicCareersJobs error:", error);
+    res.status(500).json({ error: "Failed to fetch careers jobs" });
+  }
+};
+
+// GET /api/public/careers/jobs/:id
+export const getPublicCareersJobDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT 
+        id, job_code, title, department, location_name,
+        employment_type, compensation_band, description, requirements,
+        status, created_at
+      FROM recruitment_jobs
+      WHERE (id::text = $1 OR job_code = $1) AND status = 'OPEN'
+    `;
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      // Check job_postings
+      const alt = await pool.query(
+        `SELECT 
+           j.id, 
+           COALESCE(j.slug, j.id::text) AS job_code, 
+           j.title, 
+           COALESCE(d.name, 'Engineering') AS department, 
+           j.location AS location_name, 
+           j.employment_type, 
+           COALESCE(j.salary_range, 'Competitive') AS compensation_band, 
+           j.description, 
+           j.requirements, 
+           'OPEN' AS status, 
+           j.created_at
+         FROM job_postings j
+         LEFT JOIN departments d ON d.id = j.department_id
+         WHERE (j.id::text = $1 OR j.slug = $1) AND j.status = 'Published'`,
+        [id]
+      );
+      if (alt.rows.length === 0) {
+        return res.status(404).json({ error: "Job posting not found" });
+      }
+      return res.json(alt.rows[0]);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("getPublicCareersJobDetail error:", error);
+    res.status(500).json({ error: "Failed to fetch job details" });
+  }
+};
+
+// POST /api/public/careers/apply
+export const submitPublicCareersApplication = async (req, res) => {
+  try {
+    const {
+      jobId,
+      job_id,
+      fullName,
+      full_name,
+      candidateName,
+      candidate_name,
+      email,
+      phone,
+      experienceYears,
+      experience_years,
+      resumeUrl,
+      resume_url,
+      portfolioUrl,
+      portfolio_url,
+      coverNote,
+      cover_note,
+      coverLetter,
+    } = req.body;
+
+    const actualJobId = jobId || job_id;
+    const name = fullName || full_name || candidateName || candidate_name;
+    const applicantEmail = (email || "").trim().toLowerCase();
+    const applicantPhone = (phone || "").trim();
+    const expYears = Number(experienceYears || experience_years || 0);
+    const resume = resumeUrl || resume_url || "Resume-Attached-Digital.pdf";
+    const portfolio = portfolioUrl || portfolio_url || null;
+    const note = coverNote || cover_note || coverLetter || null;
+
+    if (!actualJobId || !name || !applicantEmail || !applicantPhone) {
+      return res.status(400).json({
+        error: "Job ID, candidate name, email, and phone number are required.",
+      });
+    }
+
+    // Duplicate check: Prevent multiple applications for same email and job
+    const dupCheck = await pool.query(
+      `SELECT id, tracking_code FROM job_applications 
+       WHERE LOWER(email) = LOWER($1) AND job_id = $2`,
+      [applicantEmail, actualJobId]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      return res.status(409).json({
+        error: "An application with this email has already been submitted for this position.",
+        tracking_code: dupCheck.rows[0].tracking_code,
+      });
+    }
+
+    // Generate unique tracking code e.g. APP-2026-4821
+    const randSuffix = Math.floor(1000 + Math.random() * 9000);
+    const trackingCode = `APP-2026-${randSuffix}`;
+
+    const insertQuery = `
+      INSERT INTO job_applications (
+        job_id, candidate_name, full_name, email, phone,
+        experience_years, resume_url, portfolio_url, cover_note,
+        stage, tracking_code
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'SCREENING', $10)
+      RETURNING *
+    `;
+
+    const result = await pool.query(insertQuery, [
+      actualJobId,
+      name,
+      name,
+      applicantEmail,
+      applicantPhone,
+      expYears,
+      resume,
+      portfolio,
+      note,
+      trackingCode,
+    ]);
+
+    const created = result.rows[0];
+
+    res.status(201).json({
+      success: true,
+      message: "Application submitted successfully! Keep your tracking code to monitor your status.",
+      tracking_code: created.tracking_code,
+      applicationId: created.id,
+      stage: created.stage,
+    });
+  } catch (error) {
+    console.error("submitPublicCareersApplication error:", error);
+    res.status(500).json({ error: "Failed to submit application: " + error.message });
+  }
+};
+
+// GET /api/public/careers/track/:trackingCode
+export const trackPublicCareersApplication = async (req, res) => {
+  try {
+    const { trackingCode } = req.params;
+
+    if (!trackingCode) {
+      return res.status(400).json({ error: "Tracking code is required." });
+    }
+
+    const query = `
+      SELECT 
+        ja.id,
+        ja.tracking_code,
+        COALESCE(ja.full_name, ja.candidate_name) AS candidate_name,
+        ja.email,
+        ja.stage,
+        ja.created_at,
+        ja.updated_at,
+        COALESCE(rj.title, jp.title, 'General Position') AS job_title,
+        COALESCE(rj.department, d.name, 'Operations') AS department,
+        COALESCE(rj.location_name, jp.location, 'HQ') AS location_name
+      FROM job_applications ja
+      LEFT JOIN recruitment_jobs rj ON rj.id = ja.job_id
+      LEFT JOIN job_postings jp ON jp.id = ja.job_id
+      LEFT JOIN departments d ON d.id = jp.department_id
+      WHERE UPPER(ja.tracking_code) = UPPER($1) OR ja.id::text = $1
+    `;
+
+    const result = await pool.query(query, [trackingCode]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: `No job application found for tracking code: ${trackingCode}`,
+      });
+    }
+
+    const app = result.rows[0];
+
+    // Standardized 5-step lifecycle stages for public progress display
+    const stages = ["SCREENING", "TECHNICAL", "HR", "OFFER", "ONBOARDED"];
+    const normalizedStage = String(app.stage).toUpperCase();
+    const currentStepIndex = stages.indexOf(normalizedStage) !== -1 
+      ? stages.indexOf(normalizedStage) 
+      : normalizedStage === "APPLIED" ? 0 
+      : normalizedStage === "INTERVIEW" ? 1 
+      : normalizedStage === "HIRED" ? 4 
+      : 0;
+
+    res.json({
+      success: true,
+      tracking_code: app.tracking_code,
+      candidate_name: app.candidate_name,
+      job_title: app.job_title,
+      department: app.department,
+      location_name: app.location_name,
+      stage: normalizedStage,
+      current_step: currentStepIndex + 1,
+      total_steps: 5,
+      is_rejected: normalizedStage === "REJECTED",
+      created_at: app.created_at,
+      updated_at: app.updated_at,
+    });
+  } catch (error) {
+    console.error("trackPublicCareersApplication error:", error);
+    res.status(500).json({ error: "Failed to track application" });
+  }
+};

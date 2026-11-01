@@ -8,9 +8,25 @@ import statutoryRulesService from "../src/services/payroll/statutoryRulesService
 import ctcReconciliationEngine from "../src/services/payroll/ctcReconciliationEngine.js";
 import * as bulkImportService from "../src/services/payroll/bulkImportService.js";
 import pilotService from "../src/services/payroll/payrollPilotService.js";
+import * as publicController from "../src/controllers/publicController.js";
+import * as recruitmentController from "../src/controllers/recruitmentController.js";
+import pool from "../src/config/database.js";
 
 let passed = 0;
 let failed = 0;
+
+function mockReq(body = {}, params = {}, query = {}, user = { id: "e0000000-0000-0000-0000-000000000002", name: "HR Admin", role: "HR" }) {
+  return { body, params, query, user };
+}
+
+function mockRes() {
+  const res = {
+    statusCode: 200,
+    status(code) { res.statusCode = code; return res; },
+    json(data) { res.data = data; return res; },
+  };
+  return res;
+}
 
 function test(label, fn) {
   try {
@@ -333,6 +349,90 @@ test("Kredily Pilot: Diagnoses Maharashtra February PT surcharge mismatch", () =
 
   assert.ok(diagnosis, "Diagnosis should be produced");
   assert.strictEqual(diagnosis.category, "MAHARASHTRA_PT_FEBRUARY");
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. Public Careers ATS, Candidate Stage Progression & Onboarding
+// ═══════════════════════════════════════════════════════════════════
+console.log("\n▶ 5. Public Careers ATS, Candidate Tracking & Onboarding Handoff");
+
+await asyncTest("Public Careers: GET /api/public/careers/jobs returns seeded OPEN positions", async () => {
+  const req = mockReq({}, {}, {});
+  const res = mockRes();
+  await publicController.getPublicCareersJobs(req, res);
+  assert.strictEqual(res.statusCode, 200);
+  assert.ok(Array.isArray(res.data), "Result must be an array");
+  assert.ok(res.data.length >= 3, "At least 3 seeded jobs must be returned");
+  const job = res.data[0];
+  assert.ok(job.title, "Job title is required");
+  assert.ok(job.department, "Department is required");
+  assert.strictEqual(job.status, "OPEN", "Status must be OPEN");
+});
+
+await asyncTest("Public Careers: Candidate apply, status tracking, stage progression & payroll onboarding", async () => {
+  const jobsRes = mockRes();
+  await publicController.getPublicCareersJobs(mockReq(), jobsRes);
+  const targetJob = jobsRes.data[0];
+
+  const testEmail = `aarav.candidate.${Date.now()}@example.com`;
+  const applyReq = mockReq({
+    jobId: targetJob.id,
+    fullName: "Aarav Kulkarni",
+    email: testEmail,
+    phone: "+91 98765 43210",
+    experienceYears: 4,
+    resumeUrl: "https://drive.google.com/sample-resume.pdf",
+    coverNote: "Senior Full-Stack Engineer candidate"
+  });
+  const applyRes = mockRes();
+  await publicController.submitPublicCareersApplication(applyReq, applyRes);
+
+  assert.strictEqual(applyRes.statusCode, 201);
+  assert.strictEqual(applyRes.data.success, true);
+  assert.ok(applyRes.data.tracking_code.startsWith("APP-2026-"), "Tracking code must start with APP-2026-");
+  assert.strictEqual(applyRes.data.stage, "SCREENING", "Initial stage must be SCREENING");
+
+  // Verify duplicate prevention
+  const dupRes = mockRes();
+  await publicController.submitPublicCareersApplication(applyReq, dupRes);
+  assert.strictEqual(dupRes.statusCode, 409, "Must reject duplicate application with 409");
+
+  // Verify status tracking lookup
+  const trackReq = mockReq({}, { trackingCode: applyRes.data.tracking_code });
+  const trackRes = mockRes();
+  await publicController.trackPublicCareersApplication(trackReq, trackRes);
+  assert.strictEqual(trackRes.statusCode, 200);
+  assert.strictEqual(trackRes.data.candidate_name, "Aarav Kulkarni");
+  assert.strictEqual(trackRes.data.stage, "SCREENING");
+
+  // Advance stage to TECHNICAL
+  const stageReq1 = mockReq({ stage: "TECHNICAL" }, { id: applyRes.data.applicationId });
+  const stageRes1 = mockRes();
+  await recruitmentController.updateApplicationStage(stageReq1, stageRes1);
+  assert.strictEqual(stageRes1.statusCode, 200);
+  assert.strictEqual(stageRes1.data.application.stage, "TECHNICAL");
+
+  // Advance stage to OFFER
+  const stageReq2 = mockReq({ stage: "OFFER" }, { id: applyRes.data.applicationId });
+  const stageRes2 = mockRes();
+  await recruitmentController.updateApplicationStage(stageReq2, stageRes2);
+  assert.strictEqual(stageRes2.statusCode, 200);
+  assert.strictEqual(stageRes2.data.application.stage, "OFFER");
+
+  // 1-Click Onboard Candidate to Payroll
+  const onboardReq = mockReq({
+    designation: "Senior Staff Engineer",
+    salaryMode: "MODE_A_NET_TO_CTC",
+    targetNetMonthly: 26000,
+    panNumber: "AAACS1234P",
+    uanNumber: "100900800700"
+  }, { id: applyRes.data.applicationId }, {}, { id: "e0000000-0000-0000-0000-000000000002", name: "HR Manager" });
+  const onboardRes = mockRes();
+  await recruitmentController.onboardCandidate(onboardReq, onboardRes);
+  assert.strictEqual(onboardRes.statusCode, 201);
+  assert.strictEqual(onboardRes.data.success, true);
+  assert.ok(onboardRes.data.emp_code.startsWith("SH-"), "Generated employee code must start with SH-");
+  assert.strictEqual(onboardRes.data.employee.calculation_mode, "MODE_A_NET_TO_CTC");
 });
 
 // ═══════════════════════════════════════════════════════════════════

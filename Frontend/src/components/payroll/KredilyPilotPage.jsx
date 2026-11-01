@@ -54,6 +54,18 @@ export const KredilyPilotPage = () => {
     toast.success(`Loaded external register: ${f.name}`);
   };
 
+  const loadSampleBenchmark = () => {
+    const sampleCsv = `employee_code,gross_pay,net_pay,epf_employee,epf_employer,esic_employee,professional_tax
+SH-001,100000,98000,1800,1950,0,200
+SH-002,85000,83000,1800,1950,0,200
+SH-003,75000,73000,1800,1950,0,200
+SH-004,28000,26000,1800,1950,0,200`;
+    const blob = new Blob([sampleCsv], { type: "text/csv" });
+    const file = new File([blob], "Kredily_Sample_Register.csv", { type: "text/csv" });
+    setKredilyFile(file);
+    toast.success("Loaded benchmark register with 4 sample records.");
+  };
+
   const handleRunComparison = async () => {
     if (!selectedRunId) {
       toast.error("Please select a PatilOne payroll run");
@@ -169,9 +181,18 @@ export const KredilyPilotPage = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              2. Upload Kredily CSV Register
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block font-semibold text-slate-700 uppercase tracking-wider">
+                2. Upload Kredily CSV Register
+              </label>
+              <button
+                type="button"
+                onClick={loadSampleBenchmark}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer underline"
+              >
+                Use Sample Benchmark
+              </button>
+            </div>
             <input
               type="file"
               accept=".csv"
