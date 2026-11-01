@@ -33,3 +33,34 @@
 ## Current Status & Next Phase
 - **Classification:** Ready for controlled parallel testing.
 - **Pilot Shadow Runs:** Run 2 consecutive monthly shadow cycles against Kredily before final live cutover.
+
+---
+
+## Dynamic Multi-Location Payroll Matching Engine & Bulk Import (Completed 2026-11-01)
+- [x] **Database Schema (`database/07-location-policy-schema.sql`):**
+  - Created `payroll_location_policies` table for branch-level statutory rules, Dearness Allowance (DA), HRA %, fixed allowances, and cost multipliers.
+  - Created `payroll_location_policy_history` for immutable audit logging of policy edits.
+  - Created `payroll_import_staging` for decoupled bulk employee onboarding (300+ records) before credential assignment.
+  - Linked `employees.location_policy_id` FK.
+  - Zero hardcoded location names anywhere in code or database seeds.
+- [x] **Core Calculation Engine (`ctcReconciliationEngine.js` & `statutoryRulesService.js`):**
+  - Added `decomposeFromNetSalary()` (Mode A: Net-to-CTC) replicating plant Excel logic with zero-rupee internal variance.
+  - Added multi-state Professional Tax (`calculateMultiStatePT`):
+    - MH: Maharashtra Act XIX of 2023 (≤₹25k female exempt, Feb ₹300 surcharge).
+    - MP: Madhya Pradesh PT Act 1995 (≤₹9,999: ₹0, ₹10k-₹14,999: ₹125, ₹15k-₹19,999: ₹167, ≥₹20k: ₹208).
+    - GJ: Gujarat PT Act 1976.
+    - KA: Karnataka PT Act 1976.
+    - TN: No PT (abolished 1988).
+- [x] **Backend Services & REST APIs:**
+  - `locationPolicyService.js`: Full CRUD with parameter validation, caching, and audit history logging.
+  - `locationPolicyController.js`: `/api/payroll/location-policies` and `/simulate` endpoints.
+  - `bulkImportService.js` & `bulkImportController.js`: Streaming buffer CSV/XLSX parser and row validator for PAN/UAN/IFSC.
+- [x] **Frontend UI Suite:**
+  - `LocationPoliciesPage.jsx`: Dynamic HR panel to configure DA, HRA, statutory rates, allowances, and view audit history.
+  - `CtcMatchingSimulatorPage.jsx`: Dual-mode live calculator with 3-tier validation (ERROR, WARNING, INFO) and zero-variance audit cards.
+  - `BulkImportPage.jsx`: Drag-and-drop CSV/XLSX uploader, validation summary, and staging review table.
+  - Integrated into `routes.jsx` and `Layout.jsx` sidebar navigation for ADMIN and HR roles.
+- [x] **Deterministic Verification & Benchmarks:**
+  - Total automated tests expanded to **102 tests, all passing** (`Backend/tests/payrollEngine.test.js`).
+  - Stress benchmark: **350 employee records calculated in 1ms** (0.003ms/record, Total Monthly CTC: ₹2,36,04,589).
+  - Production build: Vite 7 `2,739 modules transformed` with exit code 0.
